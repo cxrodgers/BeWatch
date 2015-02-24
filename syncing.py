@@ -5,6 +5,7 @@ import pandas
 import ArduFSM
 import my
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
+import BeWatch
 
 def index_of_biggest_diffs_across_arr(ser, ncuts_total=3):
     """Return indices of biggest diffs in various segments of arr"""
@@ -198,7 +199,7 @@ def extract_duration_of_onsets(onsets, offsets):
 
 def get_light_times_from_behavior_file(session):
     """Return time light goes on and off in logfile from session"""
-    lines = my.behavior.get_logfile_lines(session)
+    lines = BeWatch.db.get_logfile_lines(session)
 
     # They turn on in ERROR (14), INTER_TRIAL_INTERVAL (13), 
     # and off in ROTATE_STEPPER1 (2)
@@ -291,11 +292,12 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
 
 def get_or_save_lums(session, lumdir=None):
     """Load lum for session from video or if available from cache"""    
+    PATHS = BeWatch.db.get_paths()
     if lumdir is None:
         lumdir = os.path.join(PATHS['database_root'], 'lums')
     
     # Get metadata about session
-    sbvdf = my.behavior.get_synced_behavior_and_video_df().set_index('session')
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df().set_index('session')
     session_row = sbvdf.ix[session]
     guess_vvsb_start = session_row['guess_vvsb_start']
     vfilename = session_row['filename_video']
@@ -322,7 +324,7 @@ def get_or_save_lums(session, lumdir=None):
 def autosync_behavior_and_video_with_houselight(session, save_result=True):
     """Main autosync function"""
     # Get metadata about session
-    sbvdf = get_synced_behavior_and_video_df().set_index('session')
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df().set_index('session')
     session_row = sbvdf.ix[session]
     guess_vvsb_start = session_row['guess_vvsb_start']
     vfilename = session_row['filename_video']
@@ -373,7 +375,7 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True):
     # Store
     if save_result:
         if fit_v2b is not None:
-            set_manual_bv_sync(session, fit_v2b)
+            BeWatch.db.set_manual_bv_sync(session, fit_v2b)
         else:
             print "cannot autosync", session
 
@@ -383,8 +385,8 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True):
 def autosync_behavior_and_video_with_houselight_from_day(date=None):
     """Autosync all sessions using house light from specified date"""
     # Load metadata
-    msdf = get_manual_sync_df()
-    sbvdf = get_synced_behavior_and_video_df()
+    msdf = BeWatch.db.get_manual_sync_df()
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
     sbvdf_dates = sbvdf['dt_end'].apply(lambda dt: dt.date())
     
     # Set to most recent date in database if None

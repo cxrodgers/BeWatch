@@ -3,6 +3,7 @@
 import numpy as np
 import pandas
 import ArduFSM
+import BeWatch
 import my
 import datetime
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
@@ -26,7 +27,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
     
     # Get pivoted unless provided
     if piv is None:
-        piv = calculate_pivoted_performances(start_date=start_date)
+        piv = BeWatch.db.calculate_pivoted_performances(start_date=start_date)
     
     # plot each
     to_plot_f_l = [
@@ -102,7 +103,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
 
 def display_session_plots_from_day(date=None):
     """Display all session plots from date, or most recent date"""
-    bdf = get_behavior_df()
+    bdf = BeWatch.db.get_behavior_df()
     bdf_dates = bdf['dt_end'].apply(lambda dt: dt.date())
     
     # Set to most recent date in database if None
@@ -125,7 +126,7 @@ def display_session_plots_from_day(date=None):
 def display_perf_by_servo_from_day(date=None):
     """Plot perf vs servo position from all sessions from date"""
     # Get bdf and its dates
-    bdf = get_behavior_df()
+    bdf = BeWatch.db.get_behavior_df()
     bdf_dates = bdf['dt_end'].apply(lambda dt: dt.date())
     
     # Set to most recent date in database if None
@@ -155,7 +156,7 @@ def display_perf_by_servo(session=None, tm=None, ax=None):
     """
     # Get trial matrix
     if session is not None:
-        tm = my.behavior.get_trial_matrix(session)
+        tm = BeWatch.db.get_trial_matrix(session)
     
     # Ax
     if ax is None:
@@ -199,7 +200,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     """Display performance by rig over days"""
     # Get pivoted unless provided
     if piv is None:
-        piv = calculate_pivoted_perf_by_rig(drop_mice=drop_mice)
+        piv = BeWatch.db.calculate_pivoted_perf_by_rig(drop_mice=drop_mice)
     
     # plot each
     to_plot_f_l = [
@@ -271,10 +272,6 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     return res_l
 
-
-
-    
-
 def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
     """Display the real-time plot that was shown during the session.
     
@@ -283,7 +280,7 @@ def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
     is not saved in the logfile.
     """
     # Find the filename
-    bdf = get_behavior_df()
+    bdf = BeWatch.db.get_behavior_df()
     rows = bdf[bdf.session == session]
     if len(rows) != 1:
         raise ValueError("cannot find unique session for %s" % session)
@@ -291,12 +288,12 @@ def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
 
     # Guess the trial types
     trial_types = mainloop.get_trial_types(assumed_trial_types)
-    plotter = ArduFSM.plot2.PlotterWithServoThrow(trial_types)
+    plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
     plotter.init_handles()
     plotter.update(filename)     
     
     # Set xlim to include entire session
-    trial_matrix = get_trial_matrix(session)
+    trial_matrix = BeWatch.db.get_trial_matrix(session)
     plotter.graphics_handles['ax'].set_xlim((0, len(trial_matrix)))
     
     plt.show()

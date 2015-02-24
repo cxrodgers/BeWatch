@@ -318,8 +318,8 @@ def calculate_pivoted_performances(start_date=None, delta_days=15):
             datetime.timedelta(days=delta_days)    
     
     # Get data and add the mouse column
-    bdf = my.behavior.get_behavior_df()
-    pmdf = my.behavior.get_perf_metrics()
+    bdf = get_behavior_df()
+    pmdf = get_perf_metrics()
     pmdf = pmdf.join(bdf.set_index('session')[['mouse', 'dt_start']], on='session')
     pmdf = pmdf.ix[pmdf.dt_start >= start_date].drop('dt_start', 1)
     #pmdf.index = range(len(pmdf))
@@ -365,10 +365,10 @@ def calculate_pivoted_perf_by_rig(start_date=None, delta_days=15,
             datetime.timedelta(days=delta_days)    
     
     # Get behavior data
-    bdf = my.behavior.get_behavior_df()
+    bdf = get_behavior_df()
     
     # Get perf columns of interest and join on rig and date
-    pmdf = my.behavior.get_perf_metrics()[[
+    pmdf = get_perf_metrics()[[
         'session', 'perf_unforced', 'n_trials', 'fev_side_unforced']]
     pmdf = pmdf.join(bdf.set_index('session')[['rig', 'dt_start', 'mouse']], 
         on='session')
@@ -453,12 +453,14 @@ def search_for_behavior_files(behavior_dir='~/mnt/behave/runmice',
     
     See also search_for_behavior_and_video_files
     """
+    gets = getstarted()
+    
     # expand path
     behavior_dir = os.path.expanduser(behavior_dir)
     
     # Acquire all behavior files in the subdirectories
     all_behavior_files = []
-    for subdir in rigs:
+    for subdir in gets['rigs']:
         all_behavior_files += glob.glob(os.path.join(
             behavior_dir, subdir, 'logfiles', 'ardulines.*'))
 
@@ -569,6 +571,8 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
     clean : if True, also clean up the mousenames by upcasing and applying
         aliases. Finally, drop the ones not in the official list of mice.
     """
+    gets = getstarted()
+    
     # Extract info from filename
     # directory, rigname, datestring, mouse
     pattern = '(\S+)/(\S+)/logfiles/ardulines\.(\d+)\.(\S+)'
@@ -599,10 +603,11 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
     elif clean:
         # Clean the behavior files by upcasing and applying aliases
         behavior_files_df.mouse = behavior_files_df.mouse.apply(str.upper)
-        behavior_files_df.mouse.replace(aliases, inplace=True)
+        behavior_files_df.mouse.replace(gets['aliases'], inplace=True)
 
         # Drop any that are not in the list of accepted mouse names
-        behavior_files_df = behavior_files_df.ix[behavior_files_df.mouse.isin(mice)]
+        behavior_files_df = behavior_files_df.ix[
+            behavior_files_df.mouse.isin(gets['mice'])]
 
     # Add a session name based on the date and cleaned mouse name
     behavior_files_df['session'] = behavior_files_df['filename'].apply(
