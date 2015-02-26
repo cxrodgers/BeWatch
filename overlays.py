@@ -8,6 +8,7 @@ import my
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
 import matplotlib.pyplot as plt
 import my.plot
+import BeWatch
 
 def load_frames_by_trial(frame_dir, trials_info):
     """Read all trial%03d.png in frame_dir and return as dict"""
@@ -251,8 +252,8 @@ def timedelta_to_seconds2(val):
 def make_overlays_from_all_fits(overwrite_frames=False, savefig=True):
     """Makes overlays for all available sessions"""
     # Load data
-    sbvdf = get_synced_behavior_and_video_df()
-    msdf = get_manual_sync_df()
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
+    msdf = BeWatch.db.get_manual_sync_df()
     
     # Join all the dataframes we need
     jdf = sbvdf.join(msdf, on='session', how='right')
@@ -265,8 +266,9 @@ def make_overlays_from_all_fits(overwrite_frames=False, savefig=True):
 def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
     """Given a session name, generates overlays and stores in db"""
     # Load data
-    sbvdf = get_synced_behavior_and_video_df()
-    msdf = get_manual_sync_df()
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
+    msdf = BeWatch.db.get_manual_sync_df()
+    PATHS = BeWatch.db.get_paths()
     
     # Join all the dataframes we need and check that session is in there
     jdf = sbvdf.join(msdf, on='session', how='right')
@@ -284,7 +286,7 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
         dump_frames_at_retraction_time(metadata, frame_dir)
 
     # Reload the frames
-    trial_matrix = get_trial_matrix(session)
+    trial_matrix = BeWatch.db.get_trial_matrix(session)
     trialnum2frame = load_frames_by_trial(frame_dir, trial_matrix)
 
     # Keep only those trials that we found images for
@@ -343,7 +345,7 @@ def dump_frames_at_retraction_time(metadata, session_dir):
     
     # Mask out any frametimes that are before or after the video
     duration_s = timedelta_to_seconds2(metadata['duration_video'])
-    mask_by_buffer_from_end(trials_info['time_retract_vbase'], 
+    BeWatch.syncing.mask_by_buffer_from_end(trials_info['time_retract_vbase'], 
         end_time=duration_s, buffer=10)
     
     # Dump frames
