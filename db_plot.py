@@ -18,6 +18,68 @@ def status_check():
     plot_pivoted_performances()
     plt.show()
 
+
+def plot_logfile_check(logfile):
+    # Run the check
+    check_res = check_logfile(logfile)
+
+    # State numbering
+    state_num2names = get_state_num2names()  
+   
+    ## Graph
+    # Form the graph object
+    G = nx.DiGraph()
+
+    # Nodes
+    for arg0 in check_res['norm_stm'].index:
+        G.add_node(arg0)
+
+    # Edges, weighted by transition prob
+    for arg1, arg1_col in check_res['norm_stm'].iteritems():
+        for arg0, val in arg1_col.iteritems():
+            if not np.isnan(val):
+                G.add_edge(arg0, arg1, weight=val)
+
+    # Edge labels are the weights
+    edge_labels=dict([((u,v,), "%0.2f" % d['weight']) 
+        for u, v, d in G.edges(data=True)])
+
+    # Draw
+    pos = nx.circular_layout(G)
+    pos[17] = np.asarray([.25, .05])
+    pos[9] = np.asarray([.45, .05])
+    pos[8] = np.asarray([0, .05])
+    pos[13] = np.asarray([.5, .5])
+    f, ax = plt.subplots(figsize=(14, 8))
+    nx.draw(G, pos, ax=ax, with_labels=False, node_size=3000, node_shape='s')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=10)
+    nx.draw_networkx_labels(G, pos, check_res['node_labels'], font_size=8)
+
+    f.subplots_adjust(left=.01, right=.99, bottom=.01, top=.99, wspace=0, hspace=0)
+
+    ## Plot hists of all durations
+    f, axa = my.plot.auto_subplot(len(check_res['node_all_durations']),
+        figsize=(14, 10))
+    for node_num, ax in zip(
+        sorted(check_res['node_all_durations'].keys()), axa.flatten()):
+        data = check_res['node_all_durations'][node_num]
+        rng = data.max() - data.min()
+        
+        tit_str = "%d: %s, %0.3f" % (node_num, 
+            state_num2names[node_num].lower(), rng)
+        ax.set_title(tit_str, size='small')
+        ax.hist(data)
+        
+        if np.diff(ax.get_xlim()) < .01:
+            mean_ax_xlim = np.mean(ax.get_xlim())
+            ax.set_xlim((mean_ax_xlim - .005, mean_ax_xlim + .005))
+
+        my.plot.rescue_tick(ax=ax, x=4, y=3)
+
+    f.tight_layout()
+    plt.show()    
+
+
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
     """Plots figures of performances over times and returns list of figs"""
     # Choose start date

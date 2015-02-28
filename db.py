@@ -306,9 +306,93 @@ def interactive_bv_sync():
 
 
 ## End of database stuff
+def get_state_num2names():
+    """Return dict of state number to name.
+    
+    TODO: make this read or write directly from States
+    """
+    return dict(enumerate([
+        'WAIT_TO_START_TRIAL',
+        'TRIAL_START',
+        'ROTATE_STEPPER1',
+        'INTER_ROTATION_PAUSE',
+        'ROTATE_STEPPER2',
+        'MOVE_SERVO',
+        'WAIT_FOR_SERVO_MOVE',
+        'RESPONSE_WINDOW',
+        'REWARD_L',
+        'REWARD_R',
+        'POST_REWARD_TIMER_START',
+        'POST_REWARD_TIMER_WAIT',
+        'START_INTER_TRIAL_INTERVAL',
+        'INTER_TRIAL_INTERVAL',
+        'ERROR',
+        'PRE_SERVO_WAIT',
+        'SERVO_WAIT',
+        'POST_REWARD_PAUSE',
+        ]))
 
+def check_logfile(logfile):
+    """Read the logfile and collect stats on state transitions"""
+    # Read
+    rdf = ArduFSM.TrialSpeak.read_logfile_into_df(logfile)
 
+    # State numbering
+    state_num2names = get_state_num2names()  
 
+    # Extract state change times
+    st_chg = ArduFSM.TrialSpeak.get_commands_from_parsed_lines(rdf, 'ST_CHG2')
+    st_chg['time'] = st_chg['time'] / 1000.
+
+    # Get duration that it was in the state in 'arg0' column
+    st_chg['duration'] = st_chg['time'].diff()
+
+    # Drop the first row, with nan duration
+    st_chg = st_chg.drop(st_chg.index[0])
+
+    # Stats on duration by "node", that is, state
+    node_stats = {}
+    node_all_durations = {}
+    node_recs_l = []
+    for arg0, subdf in st_chg.groupby('arg0'):
+        # Get name and store all durations
+        node_name = state_num2names[arg0]
+        node_all_durations[arg0] = subdf['duration'].values
+        
+        # Min, max, mean
+        node_recs = {}
+        node_recs['node_num'] = arg0
+        node_recs['node_name'] = node_name
+        node_recs['min'] = subdf['duration'].min()
+        node_recs['max'] = subdf['duration'].max()
+        node_recs['mean'] = subdf['duration'].mean()
+        node_recs['range'] = node_recs['max'] - node_recs['min']
+        
+        # Note the ones that are widely varying
+        extra = ''
+        if node_recs['range'] > 1.1 * node_recs['mean']:
+            extra = '*'
+        
+        # Form the string
+        node_stats[arg0] = "%d:%s%s\n%0.2f" % (arg0, 
+            node_name.lower().replace('_', "\n"), 
+            extra, node_recs['mean'])
+        
+        node_recs_l.append(node_recs)
+    node_stats_df = pandas.DataFrame.from_records(node_recs_l).set_index('node_num')
+
+    # Count the number of times that each state transitioned into each other state
+    # The sum of this matrix equals the length of st_chg
+    state_transition_matrix = st_chg.pivot_table(
+        index='arg0', columns='arg1', values='trial', aggfunc=len)
+    norm_stm = state_transition_matrix.divide(state_transition_matrix.sum(1), 0)
+
+    return {
+        'node_stats_df': node_stats_df,
+        'norm_stm': norm_stm,
+        'node_all_durations': node_all_durations,
+        'node_labels': node_stats,
+        }
 
 def calculate_pivoted_performances(start_date=None, delta_days=15):
     """Returns pivoted performance metrics"""
