@@ -58,7 +58,11 @@ def generate_mplayer_guesses_and_sync(metadata,
     user_results=None, guess=(1., 0.), N=4, pre_time=10):
     """Generates best times to check video, and potentially also syncs.
     
-    metadata : a row from bv_files to sync
+    metadata : a row from bv_files to sync. Needs to specify the following:
+        'filename' : behavioral filename
+        'guess_vvsb_start'
+        'duration_video'
+        'filename_video'
     
     The fit is between these datasets:
         X : time of retraction from behavior file, minus the test_guess_vvsb
