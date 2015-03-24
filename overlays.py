@@ -264,11 +264,24 @@ def make_overlays_from_all_fits(overwrite_frames=False, savefig=True):
             savefig=savefig)
 
 def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
-    """Given a session name, generates overlays and stores in db"""
+    """Given a session name, generates overlays.
+
+    If savefig: then it will save the figure in behavior_db/overlays
+        However, if that file already exists, it will exist immediately.
+    If overwrite_frames: then it will always redump the frames
+    """
     # Load data
     sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
     msdf = BeWatch.db.get_manual_sync_df()
     PATHS = BeWatch.db.get_paths()
+
+    # Choose the savename and skip if it exists
+    if savefig:
+        savename = os.path.join(PATHS['database_root'], 'overlays',
+            session + '.png')
+        if os.path.exists(savename):
+            return
+    print session
     
     # Join all the dataframes we need and check that session is in there
     jdf = sbvdf.join(msdf, on='session', how='right')
@@ -313,8 +326,6 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
     
     # Save or show
     if savefig:
-        savename = os.path.join(PATHS['database_root'], 'overlays',
-            session + '.png')
         f.savefig(savename)
         plt.close(f)
     else:

@@ -325,8 +325,18 @@ def get_or_save_lums(session, lumdir=None):
     return lums
     
 
-def autosync_behavior_and_video_with_houselight(session, save_result=True):
-    """Main autosync function"""
+def autosync_behavior_and_video_with_houselight(session, save_result=True,
+    light_delta=30):
+    """Main autosync function
+    
+    Loads lums and behavioral onsets from session.
+    Runs through the longest_unique_fit function with various ss_thresh
+    Stores if fit found
+    
+    save_result: whether to write to db
+    light_delta: size of lum delta to detect
+        30 works well for dim lamp; 4 if direct IR illum
+    """
     # Get metadata about session
     sbvdf = BeWatch.db.get_synced_behavior_and_video_df().set_index('session')
     session_row = sbvdf.ix[session]
@@ -338,7 +348,7 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True):
 
     # Get onsets and durations
     onsets, durations = extract_onsets_and_durations(lums, 
-        delta=30, diffsize=3, refrac=5)
+        delta=light_delta, diffsize=3, refrac=5)
 
     # Same data from ardulines
     light_on, light_off = get_light_times_from_behavior_file(session)
@@ -370,18 +380,17 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True):
             start_fitlen=3, ss_thresh=ss_thresh)
         if best_fitpoly is not None:
             break
-    
+
     # Invert fit to go from video to behavior
     if best_fitpoly is None:
+        print "warning: cannot sync", session
         return None
     fit_v2b = my.misc.invert_linear_poly(best_fitpoly)
-    
+
     # Store
     if save_result:
         if fit_v2b is not None:
             BeWatch.db.set_manual_bv_sync(session, fit_v2b)
-        else:
-            print "cannot autosync", session
 
     return fit_v2b
 
@@ -401,7 +410,7 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None):
     display_dates = sbvdf.ix[sbvdf_dates == date]
     if len(display_dates) > 20:
         raise ValueError("too many dates")
-    
+
     for idx, row in display_dates.iterrows():
         session = row['session']
         if session in msdf.index:
