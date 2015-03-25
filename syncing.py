@@ -391,7 +391,8 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     return fit_v2b
 
 
-def autosync_behavior_and_video_with_houselight_from_day(date=None):
+def autosync_behavior_and_video_with_houselight_from_day(date=None,
+    light_delta=30):
     """Autosync all sessions using house light from specified date"""
     # Load metadata
     msdf = BeWatch.db.get_manual_sync_df()
@@ -414,4 +415,4 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None):
         else:
             print session
             autosync_behavior_and_video_with_houselight(session, 
-                save_result=True)
+                light_delta=light_delta, save_result=True)
