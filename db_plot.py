@@ -9,7 +9,7 @@ import datetime
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
 import matplotlib.pyplot as plt
 from my.plot import generate_colorbar
-
+import networkx as nx
 
 def status_check():
     """Run the daily status check"""
@@ -21,10 +21,10 @@ def status_check():
 
 def plot_logfile_check(logfile):
     # Run the check
-    check_res = check_logfile(logfile)
+    check_res = BeWatch.db.check_logfile(logfile)
 
     # State numbering
-    state_num2names = get_state_num2names()  
+    state_num2names = BeWatch.db.get_state_num2names_dbg()  
    
     ## Graph
     # Form the graph object

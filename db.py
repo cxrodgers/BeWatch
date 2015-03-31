@@ -332,13 +332,35 @@ def get_state_num2names():
         'POST_REWARD_PAUSE',
         ]))
 
+def get_state_num2names_dbg():
+    """moveout_shared branch"""
+    return {
+        1 :"STATE_ID_WAIT_TO_START_TRIAL",
+        2 :"STATE_ID_TRIAL_START",
+        3 :"STATE_ID_FINISH_TRIAL",
+        10 : "STATE_ROTATE_STEPPER1",#             10
+        11: "STATE_INTER_ROTATION_PAUSE",
+        12: "STATE_ROTATE_STEPPER2",
+        13: "STATE_MOVE_SERVO"     ,#             13
+        14:"STATE_WAIT_FOR_SERVO_MOVE" ,#        14
+        15:"STATE_RESPONSE_WINDOW"     ,#        15
+        16:"STATE_REWARD_L"          ,#          16
+        17:"STATE_REWARD_R"            ,#        17
+        18:"STATE_POST_REWARD_TIMER_START",#     18
+        19:"STATE_POST_REWARD_TIMER_WAIT"   ,#   19
+        20: "STATE_ERROR_TIMEOUT"           ,#    22
+        23:"STATE_PRE_SERVO_WAIT"            ,#  23
+        24:"STATE_SERVO_WAIT"                 ,# 24
+        25:"STATE_POST_REWARD_PAUSE"           ,#25        
+        }
+
 def check_logfile(logfile):
     """Read the logfile and collect stats on state transitions"""
     # Read
     rdf = ArduFSM.TrialSpeak.read_logfile_into_df(logfile)
 
     # State numbering
-    state_num2names = get_state_num2names()  
+    state_num2names = get_state_num2names_dbg()  
 
     # Extract state change times
     st_chg = ArduFSM.TrialSpeak.get_commands_from_parsed_lines(rdf, 'ST_CHG2')
