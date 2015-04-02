@@ -102,7 +102,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
     mouse_order = mouse_order.index.values
     
     # Drop some mice
-    mouse_order = mouse_order[mouse_order != 'KF28']
+    mouse_order = mouse_order[~np.in1d(mouse_order, ['KF28', 'KF40', 'KF41'])]
 
     res_l = []
     for to_plot in to_plot_f_l:
