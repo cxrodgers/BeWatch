@@ -17,7 +17,9 @@ def get_choice_times(behavior_filename, verbose=False):
             verbose=verbose)
     
     # Identify times of state change out of response window
+    # No sense in warning because there's also multiple state changes on
+    # rewarded trials
     choice_times = ArduFSM.TrialSpeak.identify_state_change_times(
-        parsed_df_by_trial, state0=resp_win_num)
+        parsed_df_by_trial, state0=resp_win_num, show_warnings=False)
     
     return choice_times    
