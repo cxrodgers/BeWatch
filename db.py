@@ -354,13 +354,18 @@ def get_state_num2names_dbg():
         25:"STATE_POST_REWARD_PAUSE"           ,#25        
         }
 
-def check_logfile(logfile):
+def check_logfile(logfile, state_names='original'):
     """Read the logfile and collect stats on state transitions"""
     # Read
     rdf = ArduFSM.TrialSpeak.read_logfile_into_df(logfile)
 
     # State numbering
-    state_num2names = get_state_num2names_dbg()  
+    if state_names == 'original':
+        state_num2names = get_state_num2names()  
+    elif state_names == 'debug':
+        state_num2names = get_state_num2names_dbg()  
+    else:
+        raise ValueError("unknown state names: %r" % state_names)
 
     # Extract state change times
     st_chg = ArduFSM.TrialSpeak.get_commands_from_parsed_lines(rdf, 'ST_CHG2')

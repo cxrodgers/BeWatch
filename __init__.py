@@ -5,6 +5,7 @@
 import db
 import syncing
 import daily_update
+import misc
 
 # These are plotting module and maybe should not be imported by default
 import db_plot

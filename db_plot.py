@@ -19,12 +19,17 @@ def status_check():
     plt.show()
 
 
-def plot_logfile_check(logfile):
+def plot_logfile_check(logfile, state_names='original'):
     # Run the check
     check_res = BeWatch.db.check_logfile(logfile)
 
     # State numbering
-    state_num2names = BeWatch.db.get_state_num2names_dbg()  
+    if state_names == 'original':
+        state_num2names = BeWatch.db.get_state_num2names()  
+    elif state_names == 'debug':
+        state_num2names = BeWatch.db.get_state_num2names_dbg()  
+    else:
+        raise ValueError("unknown state names: %r" % state_names)
    
     ## Graph
     # Form the graph object

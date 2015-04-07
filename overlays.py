@@ -159,6 +159,7 @@ def make_overlay(sess_meaned_frames, ax, meth='all'):
     my.plot.imshow(C, ax=ax, axis_call='image', origin='upper')
     ax.set_xticks([]); ax.set_yticks([])
 
+    return C
 
 
 def cached_dump_frames_at_retraction_times(rows, frame_dir='./frames'):
