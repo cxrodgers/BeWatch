@@ -36,6 +36,13 @@ def get_paths():
             'video_dir': '/home/mouse/compressed_eye',
             }
 
+    elif LOCALE == 'nivram':
+        PATHS = {
+            'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
+            'behavior_dir': '/home/chris/mnt/marvin/runmice',
+            'video_dir': '/home/chris/mnt/marvin/compressed_eye',
+            }
+
     else:
         raise ValueError("unknown locale %s" % LOCALE)
     
@@ -52,7 +59,7 @@ def getstarted():
         'KM24', 'KM25', 'KF26', 'KF28', 'KF30', 'KF32', 'KF33', 'KF35', 'KF36',
         'KF37', 'KM38', 'KM39', 'KF40', 'KF41', 'KF42']
     
-    res['rigs'] = ['L1', 'L2', 'L3']
+    res['rigs'] = ['L0', 'L1', 'L2', 'L3']
     
     res['aliases'] = {
         'KF13A': 'KF13',
