@@ -85,8 +85,17 @@ def plot_logfile_check(logfile, state_names='original'):
     plt.show()    
 
 
-def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
-    """Plots figures of performances over times and returns list of figs"""
+def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
+    drop_perfect=True):
+    """Plots figures of performances over times and returns list of figs
+    
+    start_date : when to start plotting data
+    delta_days : if start_date is None, plot this many recent days
+    piv : if you don't want me to calculate it myself using
+        calculate_pivoted_performances
+    drop_perfect: assume days with perfect performance are artefactual
+        and drop them
+    """
     # Choose start date
     if start_date is None:
         start_date = datetime.datetime.now() - \
@@ -94,7 +103,8 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
     
     # Get pivoted unless provided
     if piv is None:
-        piv = BeWatch.db.calculate_pivoted_performances(start_date=start_date)
+        piv = BeWatch.db.calculate_pivoted_performances(start_date=start_date,
+            drop_perfect=drop_perfect)
     
     # plot each
     to_plot_f_l = [
@@ -107,7 +117,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None):
     mouse_order = mouse_order.index.values
     
     # Drop some mice
-    mouse_order = mouse_order[~np.in1d(mouse_order, ['KF28', 'KF40', 'KF41'])]
+    mouse_order = mouse_order[~np.in1d(mouse_order, ['KF28', 'KM14'])]
 
     res_l = []
     for to_plot in to_plot_f_l:

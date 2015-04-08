@@ -428,8 +428,15 @@ def check_logfile(logfile, state_names='original'):
         'node_labels': node_stats,
         }
 
-def calculate_pivoted_performances(start_date=None, delta_days=15):
-    """Returns pivoted performance metrics"""
+def calculate_pivoted_performances(start_date=None, delta_days=15,
+    drop_perfect=True):
+    """Returns pivoted performance metrics
+    
+    start_date : when to start calculating
+    delta_days : if start_date is None, do this many recent days
+    drop_perfect : assume days with perfect performance are artefactual
+        and drop them
+    """
     # Choose start date
     if start_date is None:
         start_date = datetime.datetime.now() - \
@@ -458,6 +465,11 @@ def calculate_pivoted_performances(start_date=None, delta_days=15):
         print "warning: dropping %d duplicated sessions" % dup_idxs.sum()
         print "\n".join(pmdf['session'][dup_idxs].values)
         pmdf = pmdf.drop(pmdf.index[dup_idxs])
+
+    if drop_perfect:
+        mask = (pmdf.perf_all == 1.0) | (pmdf.perf_unforced == 1.0)
+        print "warning: dropping %d perfect sessions" % np.sum(mask)
+        pmdf = pmdf[~mask]
 
     # pivot on all metrics
     piv = pmdf.drop('session', 1).pivot_table(index='mouse', columns='date_s')
