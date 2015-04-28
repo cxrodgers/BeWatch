@@ -292,9 +292,17 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
     
     return best_fitpoly
 
+def get_95prctl_r_minus_b(frame):
+    """Gets the 95th percentile of the distr of Red - Blue in the frame
+    
+    Spatially downsample by 2x in x and y to save time.
+    """
+    vals = (
+        frame[::2, ::2, 0].astype(np.int) - 
+        frame[::2, ::2, 2].astype(np.int)).flatten()
+    return np.sort(vals)[int(.95 * len(vals))]
 
-
-def get_or_save_lums(session, lumdir=None):
+def get_or_save_lums(session, lumdir=None, meth='r-b', verbose=True):
     """Load lum for session from video or if available from cache"""    
     PATHS = BeWatch.db.get_paths()
     if lumdir is None:
@@ -317,7 +325,14 @@ def get_or_save_lums(session, lumdir=None):
         return lums    
 
     # Get the lums ... this takes a while
-    lums = my.misc.process_chunks_of_video(vfilename, n_frames=np.inf)
+    if verbose:
+        print "calculating lums.."
+    if meth == 'gray':
+        lums = my.video.process_chunks_of_video(vfilename, n_frames=np.inf,
+            verbose=verbose)
+    elif meth == 'r-b':
+        lums = my.video.process_chunks_of_video(vfilename, n_frames=np.inf,
+            func=get_95prctl_r_minus_b, pix_fmt='rgb24', verbose=verbose)
     
     # Save
     my.misc.pickle_dump(lums, new_lum_filename)
