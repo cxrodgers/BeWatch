@@ -200,6 +200,61 @@ def display_session_plots_from_day(date=None):
         f_l.append(f)
     return f_l
 
+def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L2', 'L3'),
+    overlay_meth='all'):
+    """Plot all overlays from each rig to check positioning
+    
+    The 'frames' dir needs to be filled out first. The easiest way to do 
+    this is to run make_overlays_from_all_fits.
+    """
+    # Get df and its dates
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
+    sbvdf_dates = sbvdf['dt_end'].apply(lambda dt: dt.date())
+    
+    # Set to most recent date in database if None
+    if date is None:
+        date = sbvdf_dates.max()
+    
+    # Choose the ones to display
+    display_dates = sbvdf.ix[sbvdf_dates == date]
+
+    # Select by rigs and sort by rig and date
+    display_dates = my.pick_rows(display_dates, rig=rigs).sort(
+        ['rig', 'dt_end'])
+
+    # Make a figure with rigs on columns
+    n_rows = display_dates.groupby('rig').apply(len).max()
+    n_cols = len(rigs)
+    f, axa = plt.subplots(n_rows, n_cols)
+
+    # Go through each entry and place into appropriate axis
+    rownum = np.zeros(n_cols)
+    for idx, sub_sbvdf_row in display_dates.iterrows():
+        # Figure out which row and column we're in
+        col = rigs.index(sub_sbvdf_row['rig'])
+        row = rownum[col]
+        rownum[col] = rownum[col] + 1
+        ax = axa[row, col]
+        
+        # Title the subplot with the session
+        session = sub_sbvdf_row['session']
+        ax.set_title(session)
+        
+        # Try to construct the meaned frames
+        try:
+            sess_meaned_frames = BeWatch.overlays.generate_meaned_frames(
+                session)
+        except:
+            sess_meaned_frames = None
+        
+        # Plot
+        if sess_meaned_frames is None:
+            print "no frames for", session
+            ax.set_visible(False)
+        else:
+            BeWatch.overlays.make_overlay(sess_meaned_frames, ax, 
+                meth=overlay_meth)
+
 def display_perf_by_servo_from_day(date=None):
     """Plot perf vs servo position from all sessions from date"""
     # Get bdf and its dates
