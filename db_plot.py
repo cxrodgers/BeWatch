@@ -11,11 +11,21 @@ import matplotlib.pyplot as plt
 from my.plot import generate_colorbar
 import networkx as nx
 
-def status_check():
+def status_check(delta_days=30):
     """Run the daily status check"""
     # For right now this same function checks for missing sessions, etc,
     # but this should be broken out
-    plot_pivoted_performances()
+    cohorts = [
+        ['KF26', 'KF32', 'KF35'],
+        ['KF30', 'KF33', 'KF36', 'KF37'],
+        ['KM38', 'KM39', 'KF40', 'KF41', 'KF42'],
+        #~ ['KM43', 'KM44', 'KM45'],
+        ]
+    for cohort in cohorts:
+        plot_pivoted_performances(keep_mice=cohort, delta_days=delta_days)
+    
+    BeWatch.db_plot.display_perf_by_servo_from_day()
+    BeWatch.db_plot.display_perf_by_rig()
     plt.show()
 
 
@@ -86,7 +96,7 @@ def plot_logfile_check(logfile, state_names='original'):
 
 
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
-    drop_perfect=True):
+    drop_perfect=True, keep_mice=None, drop_mice=None):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -95,6 +105,8 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         calculate_pivoted_performances
     drop_perfect: assume days with perfect performance are artefactual
         and drop them
+    keep_mice : keep only these mice
+    drop_mice : drop these mice
     """
     # Choose start date
     if start_date is None:
@@ -109,15 +121,18 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     # plot each
     to_plot_f_l = [
         ['perf_unforced', 'perf_all', 'n_trials', 'spoil_frac',],
-        ['perf_all', 'fev_corr_all', 'fev_side_all', 'fev_stay_all'],
-        ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
+        #~ ['perf_all', 'fev_corr_all', 'fev_side_all', 'fev_stay_all'],
+        #~ ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
         ]
     mouse_order = piv['perf_unforced'].mean(1)
     mouse_order.sort()
     mouse_order = mouse_order.index.values
     
     # Drop some mice
-    mouse_order = mouse_order[~np.in1d(mouse_order, ['KF28', 'KM14'])]
+    if drop_mice is not None:
+        mouse_order = mouse_order[~np.in1d(mouse_order, drop_mice)]
+    if keep_mice is not None:
+        mouse_order = mouse_order[np.in1d(mouse_order, keep_mice)]
 
     res_l = []
     for to_plot in to_plot_f_l:
@@ -134,7 +149,11 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
             
             # Plot the metric
             for nmouse, mouse in enumerate(mice):
-                ax.plot(xlabels_num, pm.ix[mouse].values, color=colors[nmouse],
+                null_mask = pm.ix[mouse].isnull().values
+                ax.plot(
+                    xlabels_num[~null_mask], 
+                    pm.ix[mouse].values[~null_mask], 
+                    color=colors[nmouse],
                     ls='-', marker='s', mec='none', mfc=colors[nmouse])
                 ax.set_ylabel(metric)
 

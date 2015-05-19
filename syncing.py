@@ -344,7 +344,7 @@ def get_or_save_lums(session, lumdir=None, meth='r-b', verbose=True):
     
 
 def autosync_behavior_and_video_with_houselight(session, save_result=True,
-    light_delta=30):
+    light_delta=None, verbose=False):
     """Main autosync function
     
     Loads lums and behavioral onsets from session.
@@ -361,8 +361,16 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     guess_vvsb_start = session_row['guess_vvsb_start']
     vfilename = session_row['filename_video']
 
+    if light_delta is None:
+        if session_row['rig'] == 'L2':
+            light_delta = 8
+        else:
+            light_delta = 20
+    if verbose:
+        print "using light_delta: ", light_delta
+
     # Get the lums ... this takes a while
-    lums = get_or_save_lums(session)
+    lums = get_or_save_lums(session, verbose=verbose)
 
     # Get onsets and durations
     onsets, durations = extract_onsets_and_durations(lums, 
@@ -413,8 +421,7 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     return fit_v2b
 
 
-def autosync_behavior_and_video_with_houselight_from_day(date=None,
-    light_delta=30):
+def autosync_behavior_and_video_with_houselight_from_day(date=None, **kwargs):
     """Autosync all sessions using house light from specified date"""
     # Load metadata
     msdf = BeWatch.db.get_manual_sync_df()
@@ -436,5 +443,4 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None,
             print session, "already synced"
         else:
             print session
-            autosync_behavior_and_video_with_houselight(session, 
-                light_delta=light_delta, save_result=True)
+            autosync_behavior_and_video_with_houselight(session, **kwargs)
