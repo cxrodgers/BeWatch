@@ -51,6 +51,9 @@ def generate_test_times_for_user(times, max_time, initial_guess=(.9991, 7.5),
 
 def mask_by_buffer_from_end(ser, end_time, buffer=10):
     """Set all values of ser to np.nan that occur within buffer of the ends"""
+    # Avoiding setting with copy warning since we don't care
+    ser.iscopy = False
+    
     ser[ser < buffer] = np.nan
     ser[ser > end_time - buffer] = np.nan
 
