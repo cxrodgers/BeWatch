@@ -189,52 +189,46 @@ def cached_dump_frames_at_retraction_times(rows, frame_dir='./frames'):
         # Dump the frames
         dump_frames_at_retraction_time(row, session_dir=output_dir)
 
-def generate_meaned_frames(rows, frame_dir='./frames'):
-    """Iterate over rows and extract frames meaned by type.
-    
-    Get session name from each row.
-    Skips any where no frame subdirectory is found.
-    
-    Returns all meaned frames.
+
+
+def generate_meaned_frames(session):
+    """Generates the 'sess_meaned_frames', split by side and servo.
     """
-    resdf_d = {}
-    for idx, sessrow in rows.iterrows():
-        # Check that frame_dir exists
-        sess_dir = os.path.join(frame_dir, sessrow['behave_filename'])
-        if not os.path.exists(sess_dir):
-            continue        
-        
-        # Load trials info
-        trials_info = ArduFSM.trials_info_tools.load_trials_info_from_file(
-            sessrow['filename'])
+    # Load data
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
+    msdf = BeWatch.db.get_manual_sync_df()
+    PATHS = BeWatch.db.get_paths()
 
-        # Load all images
-        trialnum2frame = {}
-        for trialnum in trials_info.index:
-            filename = os.path.join(sess_dir, 'trial%03d.png' % trialnum)
-            if os.path.exists(filename):
-                im = scipy.misc.imread(filename, flatten=True)
-                trialnum2frame[trialnum] = im
+    # Join all the dataframes we need and check that session is in there
+    jdf = sbvdf.join(msdf, on='session', how='right')
+    metadata = jdf[jdf.session == session]
+    if len(metadata) != 1:
+        raise ValueError("session %s not found for overlays" % session)
+    metadata = metadata.irow(0)
+    
+    # Dump the frames
+    frame_dir = os.path.join(PATHS['database_root'], 'frames', session)
+    if not os.path.exists(frame_dir):
+        raise ValueError("no frames for %s, run make_overlays_for_all_fits")
 
-        # Keep only those trials that we found images for
-        trials_info = trials_info.ix[sorted(trialnum2frame.keys())]
+    # Reload the frames
+    trial_matrix = BeWatch.db.get_trial_matrix(session)
+    trialnum2frame = load_frames_by_trial(frame_dir, trial_matrix)
 
-        # Split on side, servo_pos, stim_number
-        res = []
-        gobj = trials_info.groupby(['rewside', 'servo_position', 'stim_number'])
-        for (rewside, servo_pos, stim_number), subti in gobj:
-            meaned = np.mean([trialnum2frame[trialnum] for trialnum in subti.index],
-                axis=0)
-            res.append({'rewside': rewside, 'servo_pos': servo_pos, 
-                'stim_number': stim_number, 'meaned': meaned})
-        resdf = pandas.DataFrame.from_records(res)
+    # Keep only those trials that we found images for
+    trial_matrix = trial_matrix.ix[sorted(trialnum2frame.keys())]
 
-        # Store
-        resdf_d[sessrow['behave_filename']] = resdf        
-
-    # Store all results
-    meaned_frames = pandas.concat(resdf_d, verify_integrity=True)
-    return meaned_frames
+    # Split on side, servo_pos, stim_number
+    res = []
+    gobj = trial_matrix.groupby(['rewside', 'servo_pos', 'stepper_pos'])
+    for (rewside, servo_pos, stim_number), subti in gobj:
+        meaned = np.mean([trialnum2frame[trialnum] for trialnum in subti.index],
+            axis=0)
+        res.append({'rewside': rewside, 'servo_pos': servo_pos, 
+            'stim_number': stim_number, 'meaned': meaned})
+    resdf = pandas.DataFrame.from_records(res)    
+    
+    return resdf
 
 def timedelta_to_seconds1(val):
     """Often it ends up as a 0d timedelta array.
@@ -364,7 +358,8 @@ def dump_frames_at_retraction_time(metadata, session_dir):
     frametimes_to_dump = trials_info['time_retract_vbase'].dropna()
     for trialnum, frametime in trials_info['time_retract_vbase'].dropna().iterkv():
         output_filename = os.path.join(session_dir, 'trial%03d.png' % trialnum)
-        my.misc.frame_dump(metadata['filename_video'], frametime, meth='ffmpeg fast',
+        my.video.frame_dump(metadata['filename_video'], 
+            frametime, meth='ffmpeg fast',
             output_filename=output_filename)
 
 
