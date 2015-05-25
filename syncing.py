@@ -362,6 +362,8 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     vfilename = session_row['filename_video']
 
     if light_delta is None:
+        if session_row['rig'] == 'L1':
+            light_delta = 4
         if session_row['rig'] == 'L2':
             light_delta = 8
         else:
