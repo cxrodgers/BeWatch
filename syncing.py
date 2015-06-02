@@ -164,8 +164,7 @@ def extract_onsets_and_durations(lums, delta=30, diffsize=3, refrac=5):
     offsets2 = drop_refrac(offsets, refrac)    
     
     # get durations
-    remaining_onsets, durations = extract_duration_of_onsets(onsets2, offsets2)
-    
+    remaining_onsets, durations = extract_duration_of_onsets2(onsets2, offsets2)
     return remaining_onsets, durations
     
 
@@ -179,8 +178,8 @@ def drop_refrac(arr, refrac):
 def extract_duration_of_onsets(onsets, offsets):
     """Extract duration of each onset.
     
-    This is the time to the next offset. If there is another intervening 
-    onset, then drop the first one.
+    The duration is the time to the next offset. If there is another 
+    intervening onset, then drop the first one.
     
     Returns: remaining_onsets, durations
     """
@@ -203,6 +202,45 @@ def extract_duration_of_onsets(onsets, offsets):
         durations.append(next_offset - val)    
 
     return np.asarray(onsets3), np.asarray(durations)
+
+def extract_duration_of_onsets2(onsets, offsets):
+    """Extract duration of each onset.
+    
+    Use a "greedy" algorithm. For each onset:
+        * Assign it to the next offset
+        * Drop any intervening onsets
+        * Continue with the next onset
+
+    Returns: remaining_onsets, durations
+    """
+    onsets3 = []
+    durations = []
+    
+    # This trigger will be set after each detected duration to mask out
+    # subsequent onsets greedily
+    onset_trigger = np.min(onsets) - 1
+    
+    # Iterate over onsets
+    for idx, val in enumerate(onsets):
+        # Skip onsets 
+        if val < onset_trigger:
+            continue
+        
+        # Find upcoming offsets and skip if none
+        upcoming_offsets = offsets[offsets > val]
+        if len(upcoming_offsets) == 0:
+            continue
+        next_offset = upcoming_offsets[0]
+        
+        # Store duration and this onset
+        onsets3.append(val)
+        durations.append(next_offset - val)
+        
+        # Save this trigger to skip subsequent onsets greedily
+        onset_trigger = next_offset
+
+    return np.asarray(onsets3), np.asarray(durations)
+
 
 def get_light_times_from_behavior_file(session):
     """Return time light goes on and off in logfile from session"""
@@ -364,7 +402,7 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     if light_delta is None:
         if session_row['rig'] == 'L1':
             light_delta = 4
-        if session_row['rig'] == 'L2':
+        elif session_row['rig'] == 'L2':
             light_delta = 8
         else:
             light_delta = 20
