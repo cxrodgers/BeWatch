@@ -16,9 +16,9 @@ def status_check(delta_days=30):
     # For right now this same function checks for missing sessions, etc,
     # but this should be broken out
     cohorts = [
-        ['KF26', 'KF32', 'KF35', 'KF30', 'KF37'],
-        ['KM38', 'KF40', 'KF41', 'KF42'],
-        ['KM43', 'KM44', 'KM45'],
+        ['KF26', 'KF30', 'KF32', 'KF35', 'KF37'],
+        ['KM38', 'KF41', 'KF47',],
+        ['KF40', 'KF42', 'KM43', 'KM44', 'KM45', 'KF46', 'KF48'],
         ]
     for cohort in cohorts:
         plot_pivoted_performances(keep_mice=cohort, delta_days=delta_days)
