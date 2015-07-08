@@ -16,9 +16,9 @@ def status_check(delta_days=30):
     # For right now this same function checks for missing sessions, etc,
     # but this should be broken out
     cohorts = [
-        ['KF26', 'KF30', 'KF32', 'KF35', 'KF37'],
-        ['KM38', 'KF41', 'KF47',],
-        ['KF40', 'KF42', 'KM43', 'KM44', 'KM45', 'KF46', 'KF48'],
+        ['KF26', 'KF30', 'KF32', 'KF35', 'KF40', 'KF42',],
+        ['KF37', 'KM38', 'KF41',],
+        ['KM43', 'KM44', 'KM45', 'KF46', 'KF47', 'KF48'],
         ]
     for cohort in cohorts:
         plot_pivoted_performances(keep_mice=cohort, delta_days=delta_days)
@@ -91,11 +91,11 @@ def plot_logfile_check(logfile, state_names='original'):
         my.plot.rescue_tick(ax=ax, x=4, y=3)
 
     f.tight_layout()
-    plt.show()    
-
+    plt.show()      
 
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
-    drop_perfect=True, keep_mice=None, drop_mice=None):
+    drop_perfect=True, keep_mice=None, drop_mice=None,
+    perf_unforced_only=False, by_day_of_training=False):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -106,6 +106,11 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         and drop them
     keep_mice : keep only these mice
     drop_mice : drop these mice
+    perf_unforced_only : only show one metric
+    by_day_of_training : Plot everything locked to first day of data,
+        rather than actual date. This is implemented very simply where null
+        dates are dropped. So for instance, munged days will be dropped and
+        then it will appear that they learned faster.
     """
     # Choose start date
     if start_date is None:
@@ -118,11 +123,14 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
             drop_perfect=drop_perfect)
     
     # plot each
-    to_plot_f_l = [
-        ['perf_unforced', 'perf_all', 'n_trials', 'spoil_frac',],
-        #~ ['perf_all', 'fev_corr_all', 'fev_side_all', 'fev_stay_all'],
-        #~ ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
-        ]
+    if perf_unforced_only:
+        to_plot_f_l = [['perf_unforced']]
+    else:
+        to_plot_f_l = [
+            ['perf_unforced', 'perf_all', 'n_trials', 'spoil_frac',],
+            #~ ['perf_all', 'fev_corr_all', 'fev_side_all', 'fev_stay_all'],
+            #~ ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
+            ]
     mouse_order = piv['perf_unforced'].mean(1)
     mouse_order.sort()
     mouse_order = mouse_order.index.values
@@ -135,26 +143,43 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
 
     res_l = []
     for to_plot in to_plot_f_l:
-        f, axa = plt.subplots(len(to_plot), 1, figsize=(7, 15))
+        # Make figure
+        figsize = (7, 3.75 * len(to_plot))
+        f, axa = plt.subplots(len(to_plot), 1, figsize=figsize, squeeze=False)
         f.subplots_adjust(top=.95, bottom=.075)
-        xlabels = piv.columns.levels[1].values
-        xlabels_num = np.arange(len(xlabels))
+        
+        # Get mice and color of mice
         mice = mouse_order #piv.index.values
         colors = generate_colorbar(len(mice), 'jet')
         
         # Iterate over metrics
-        for ax, metric in zip(axa, to_plot):
+        for ax, metric in zip(axa.flatten(), to_plot):
             pm = piv[metric]
+        
+            # Set x-axis
+            if by_day_of_training:
+                n_days = (~pm.isnull()).sum(1).max()
+                xlabels = np.arange(n_days)
+                xlabels_num = xlabels
+            else:
+                xlabels = piv.columns.levels[1].values
+                xlabels_num = np.arange(len(xlabels))            
             
             # Plot the metric
+            ax.set_ylabel(metric)
             for nmouse, mouse in enumerate(mice):
-                null_mask = pm.ix[mouse].isnull().values
-                ax.plot(
-                    xlabels_num[~null_mask], 
-                    pm.ix[mouse].values[~null_mask], 
-                    color=colors[nmouse],
-                    ls='-', marker='s', mec='none', mfc=colors[nmouse])
-                ax.set_ylabel(metric)
+                if by_day_of_training:
+                    # We just drop all the nulls wherever they occur
+                    ax.plot(pm.ix[mouse].dropna().values,
+                        color=colors[nmouse], ls='-', marker='s', mec='none',
+                        mfc=colors[nmouse])
+                else:
+                    null_mask = pm.ix[mouse].isnull().values
+                    ax.plot(
+                        xlabels_num[~null_mask], 
+                        pm.ix[mouse].values[~null_mask], 
+                        color=colors[nmouse],
+                        ls='-', marker='s', mec='none', mfc=colors[nmouse])
 
             # ylims and chance line
             if metric != 'n_trials':            
@@ -164,26 +189,29 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
                 ax.plot(xlabels_num, np.ones_like(xlabels_num) * .5, 'k-')
 
             # Plot error X on missing sessions
-            if ax is axa[-1]:
-                for nmouse, mouse in enumerate(mice):
-                    null_dates = piv['n_trials'].isnull().ix[mouse].values
-                    pm_copy = np.ones_like(null_dates) * \
-                        (nmouse + 0.5) / float(len(mice))
-                    pm_copy[~null_dates] = np.nan
-                    ax.plot(xlabels_num, pm_copy, color=colors[nmouse], marker='x',
-                        ls='none', mew=1)
+            if not by_day_of_training:
+                if ax is axa[-1, 0]:
+                    for nmouse, mouse in enumerate(mice):
+                        null_dates = piv['n_trials'].isnull().ix[mouse].values
+                        pm_copy = np.ones_like(null_dates) * \
+                            (nmouse + 0.5) / float(len(mice))
+                        pm_copy[~null_dates] = np.nan
+                        ax.plot(xlabels_num, pm_copy, color=colors[nmouse], marker='x',
+                            ls='none', mew=1)
 
             # xticks
             ax.set_xlim((xlabels_num[0], xlabels_num[-1]))
-            if ax is axa[-1]:
-                ax.set_xticks(xlabels_num)
-                ax.set_xticklabels(xlabels, rotation=45, ha='right', size='small')
-            else:
-                ax.set_xticks(xlabels_num)
-                ax.set_xticklabels([''] * len(xlabels_num))
+            if not by_day_of_training:
+                if ax is axa[-1, 0]:
+                    ax.set_xticks(xlabels_num)
+                    ax.set_xticklabels(xlabels, rotation=45, 
+                        ha='right', size='small')
+                else:
+                    ax.set_xticks(xlabels_num)
+                    ax.set_xticklabels([''] * len(xlabels_num))
         
         # mouse names in the top
-        ax = axa[0]
+        ax = axa[0, 0]
         xlims = ax.get_xlim()
         for nmouse, (mouse, color) in enumerate(zip(mice, colors)):
             xpos = xlims[0] + (nmouse + 0.5) / float(len(mice)) * \
