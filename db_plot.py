@@ -18,7 +18,7 @@ def status_check(delta_days=30):
     cohorts = [
         ['KF30', 'KF32', 'KF35', 'KF37',],
         ['KM38', 'KF40', 'KF41', 'KF42',],
-        ['KM43', 'KM44', 'KM45', 'KF46', 'KF47'],
+        ['KM43', 'KM44', 'KM45', 'KF47'],
         ['KM49', 'KM50', 'KM51',],
         ]
     for cohort in cohorts:
