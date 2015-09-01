@@ -242,15 +242,20 @@ def extract_duration_of_onsets2(onsets, offsets):
     return np.asarray(onsets3), np.asarray(durations)
 
 
-def get_light_times_from_behavior_file(session):
+def get_light_times_from_behavior_file(session=None, logfile=None):
     """Return time light goes on and off in logfile from session"""
-    lines = BeWatch.db.get_logfile_lines(session)
+    if session is not None:
+        lines = BeWatch.db.get_logfile_lines(session)
+    elif logfile is not None:
+        lines = TrialSpeak.read_lines_from_file(logfile)
+    else:
+        raise ValueError("must provide either session or logfile")
 
     # They turn on in ERROR (14), INTER_TRIAL_INTERVAL (13), 
     # and off in ROTATE_STEPPER1 (2)
     parsed_df_by_trial = TrialSpeak.parse_lines_into_df_split_by_trial(lines)
     light_on = TrialSpeak.identify_state_change_times(
-        parsed_df_by_trial, state1=[13, 14])
+        parsed_df_by_trial, state1=[13, 14], show_warnings=False)
     light_off = TrialSpeak.identify_state_change_times(
         parsed_df_by_trial, state0=2)
     
