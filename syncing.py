@@ -262,42 +262,60 @@ def get_light_times_from_behavior_file(session=None, logfile=None):
     return light_on, light_off
 
 def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
-    verbose=True):
+    verbose=True, x_midslice_start=None):
     """Find the longest consecutive string of fit points between x and y.
 
-    # Finally, sync up
-    # How about, start with N=5 trials from the middle of the behavior, 
-    # find optimal matching 5 consecutive hits from house light
-    # by scanning over all possible matches and keeping under some resid, 
-    # increase N until only one unique hit foudn
-
-    # If SS_THRESH is too generous, then we'll start including bad data points
-    # at the ends and potentially corrupt the fit
-    # Perhaps add another outer loop where we start with a very tight SS_THRESH
-    # and increase if no fit found, or only fit of a very short length.
-    # Also, could add an intermediate loop with various different starting
-    # indexes, in case the middle of the session is corrupted.  
-
-    Note ss_thresh is in terms of the units of y, eg frames or sec.
+    We start by taking a slice from xdata of length `start_fitlen` 
+    points. This slice is centered at `x_midslice_start` (by default,
+    halfway through). We then take all possible contiguous slices of 
+    the same length from `ydata`; fit each one to the slice from `xdata`;
+    and calculate the best-fit sum-squared residual per data point. 
     
+    If any slices have a per-point residual less than `ss_thresh`, then 
+    increment the length of the fit and repeat. If none do, then return 
+    the best fit for the previous iteration, or None if this is the first
+    iteration.
+    
+    Usually it's best to begin with a small ss_thresh, because otherwise
+    bad data points can get incorporated at the ends and progressively worsen
+    the fit. If no fit can be found, try increasing ss_thresh, or specifying a
+    different x_midslice_start. Note that it will break if the slice in
+    xdata does not occur anywhere in ydata, so make sure that the midpoint
+    of xdata is likely to be somewhere in ydata.
+
+    xdata, ydata : unmatched data to be fit
+    start_fitlen : length of the initial slice
+    ss_thresh : threshold sum-squared residual per data point to count
+        as an acceptable fit
+    verbose : issue status messages
+    x_midslice_start : the center of the data to take from `xdata`. 
+        By default, this is the midpoint of `xdata`.
+
     Returns: best fit poly, or None if none found
     """
     # Choose the idx to start with in behavior
     fitlen = start_fitlen
-    mid_idx = len(ydata) / 2
+    if x_midslice_start is None:
+        x_midslice_start = len(xdata) / 2
     keep_going = True
     best_fitpoly = None
 
-    while keep_going:
-        # Choose the data to fit
-        chosen_idxs = xdata[mid_idx - fitlen:mid_idx + fitlen]
+    if verbose:
+        print "begin with fitlen", fitlen
+
+    while keep_going:        
+        # Slice out xdata
+        chosen_idxs = xdata[x_midslice_start - fitlen:x_midslice_start + fitlen]
         
         # Check if we ran out of data
         if len(chosen_idxs) != fitlen * 2:
+            if verbose:
+                print "out of data, breaking"
             break
         if np.any(np.isnan(chosen_idxs)):
+            if verbose:
+                print "nan data, breaking"
             break
-            
 
         # Find the best consecutive fit among onsets
         rec_l = []
@@ -305,6 +323,7 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
             # The data to fit with
             test = ydata[idx:idx + len(chosen_idxs)]
             if np.any(np.isnan(test)):
+                # This happens when the last data point in ydata is nan
                 continue
             
             # fit
@@ -323,18 +342,24 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
         # If no fits, then quit
         if len(rdf) == 0:
             keep_going = False
+            if verbose:
+                print "no fits under threshold, breaking"
+            1/0
             break
         
         # Take the best fit
         best_index = rdf['ss'].argmin()
         best_ss = rdf['ss'].min()
         best_fitpoly = rdf['fitpoly'].ix[best_index]
+        if verbose:
+            fmt = "fitlen=%d. best fit: x=%d, y=%d, xvy=%d, " \
+                "ss=%0.3g, poly=%0.4f %0.4f"
+            print fmt % (fitlen, x_midslice_start - fitlen, best_index, 
+                x_midslice_start - fitlen - best_index, 
+                best_ss / len(chosen_idxs), best_fitpoly[0], best_fitpoly[1])
 
         # Increase the size
         fitlen = fitlen + 1    
-    
-    if verbose:
-        print "fit found,", fitlen
     
     return best_fitpoly
 
