@@ -271,6 +271,8 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
     the same length from `ydata`; fit each one to the slice from `xdata`;
     and calculate the best-fit sum-squared residual per data point. 
     
+    (Technically seems we are fitting from Y to X.)
+    
     If any slices have a per-point residual less than `ss_thresh`, then 
     increment the length of the fit and repeat. If none do, then return 
     the best fit for the previous iteration, or None if this is the first
@@ -286,12 +288,12 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
     xdata, ydata : unmatched data to be fit
     start_fitlen : length of the initial slice
     ss_thresh : threshold sum-squared residual per data point to count
-        as an acceptable fit
+        as an acceptable fit. These will be in the units of X.
     verbose : issue status messages
     x_midslice_start : the center of the data to take from `xdata`. 
         By default, this is the midpoint of `xdata`.
 
-    Returns: best fit poly, or None if none found
+    Returns: a linear polynomial fitting from Y to X.
     """
     # Choose the idx to start with in behavior
     fitlen = start_fitlen
@@ -344,7 +346,6 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
             keep_going = False
             if verbose:
                 print "no fits under threshold, breaking"
-            1/0
             break
         
         # Take the best fit
