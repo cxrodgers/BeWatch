@@ -143,28 +143,60 @@ def generate_mplayer_guesses_and_sync(metadata,
 
 
 ## Begin house light syncing
-def extract_onsets_and_durations(lums, delta=30, diffsize=3, refrac=5):
-    """Extract house light times.
+def extract_onsets_and_durations(lums, delta=30, diffsize=3, refrac=5,
+    verbose=False):
+    """Identify sudden, sustained increments in the signal `lums`.
     
-    First, we diff the sig to find onsets or offsets of at least delta
-    within diffisze frames. Drop any that occur within refrac.
+    Algorithm
+    1.  Take the diff of lums over a period of `diffsize`.
+        In code, this is: lums[diffsize:] - lums[:-diffsize]
+        Note that this means we cannot detect an onset before `diffsize`.
+        Also note that this "smears" sudden onsets, so later we will always
+        take the earliest point.
+    2.  Threshold this signal to identify onsets (indexes above 
+        threshold) and offsets (indexes below -threshold). Add `diffsize`
+        to each onset and offset to account for the shift incurred in step 1.
+    3.  Drop consecutive onsets that occur within `refrac` samples of
+        each other. Repeat separately for offsets. This is done with
+        the function `drop_refrac`. Because this is done separately, note
+        that if two increments are separated by a brief return to baseline,
+        the second increment will be completely ignored (not combined with
+        the first one).
+    4.  Convert the onsets and offsets into onsets and durations. This is
+        done with the function `extract duration of onsets2`. This discards
+        any onset without a matching offset.
     
-    Then we calculate the duration of each.
+    TODO: consider applying a boxcar of XXX frames first.
     
     Returns: onsets, durations
+        onsets : array of the onset of each increment, in samples.
+            This will be the first sample that includes the detectable
+            increment, not the sample before it.
+        durations : array of the duration of each increment, in samples
+            Same length as onsets. This is "Pythonic", so if samples 10-12
+            are elevated but 9 and 13 are not, the onset is 10 and the duration
+            is 3.
     """
-    # diff the sig
-    # maybe a better way is to boxcar by 30frames first
+    # diff the sig over a period of diffsize
     diffsig = lums[diffsize:] - lums[:-diffsize]
-    onsets = np.where(diffsig > delta)[0]
-    offsets = np.where(diffsig < -delta)[0]
+    
+    # Threshold and account for the shift
+    onsets = np.where(diffsig > delta)[0] + diffsize
+    offsets = np.where(diffsig < -delta)[0] + diffsize
+    if verbose:
+        print onsets
     
     # drop refractory onsets, offsets
     onsets2 = drop_refrac(onsets, refrac)
     offsets2 = drop_refrac(offsets, refrac)    
+    if verbose:
+        print onsets2
     
     # get durations
     remaining_onsets, durations = extract_duration_of_onsets2(onsets2, offsets2)
+    if verbose:
+        print remaining_onsets
+    
     return remaining_onsets, durations
     
 
