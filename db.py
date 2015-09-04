@@ -43,6 +43,13 @@ def get_paths():
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
+    elif LOCALE == 'lumps':
+        PATHS = {
+            'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
+            'behavior_dir': '/home/jack/mnt/marvin/runmice',
+            'video_dir': '/home/jack/mnt/marvin/compressed_eye',
+            }
+
     else:
         raise ValueError("unknown locale %s" % LOCALE)
     
