@@ -15,12 +15,7 @@ def status_check(delta_days=30):
     """Run the daily status check"""
     # For right now this same function checks for missing sessions, etc,
     # but this should be broken out
-    cohorts = [
-        ['KF30', 'KF32', 'KF35', 'KF37',],
-        ['KM38', 'KF40', 'KF41', 'KF42',],
-        ['KM43', 'KM44', 'KM45', 'KF47'],
-        ['KM49', 'KM50', 'KM51',],
-        ]
+    cohorts = BeWatch.db.getstarted()['cohorts']
     for cohort in cohorts:
         plot_pivoted_performances(keep_mice=cohort, delta_days=delta_days)
     

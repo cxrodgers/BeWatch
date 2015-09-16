@@ -67,6 +67,15 @@ def getstarted():
         'AM03A': 'AM03',
         }
 
+    res['cohorts'] = [
+        ['KF30', 'KF32', 'KF35', 'KF37',],
+        ['KM38', 'KF40', 'KF41', 'KF42',],
+        ['KM43', 'KM44', 'KM45', 'KF47'],
+        ['KM49', 'KM50', 'KM51',],
+        ]
+    
+    res['active_mice'] = np.sum(res['cohorts'])
+
     # Known mice
     assert np.all([alias_val in res['mice'] 
         for alias_val in res['aliases'].values()])
