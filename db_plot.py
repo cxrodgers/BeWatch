@@ -479,6 +479,9 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     trial_matrix = BeWatch.db.get_trial_matrix(session)
     plotter.graphics_handles['ax'].set_xlim((0, len(trial_matrix)))
     
+    # label
+    plotter.graphics_handles['f'].text(0, 0, session)
+    
     plt.show()
     return plotter.graphics_handles['f']
 
