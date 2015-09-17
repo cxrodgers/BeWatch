@@ -91,7 +91,7 @@ def plot_logfile_check(logfile, state_names='original'):
 
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     drop_perfect=True, keep_mice=None, drop_mice=None,
-    perf_unforced_only=False, by_day_of_training=False):
+    perf_unforced_only=False, by_day_of_training=False, f=None, ax=None):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -107,6 +107,8 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         rather than actual date. This is implemented very simply where null
         dates are dropped. So for instance, munged days will be dropped and
         then it will appear that they learned faster.
+    f, ax : If perf_unforced_only is True, you can provide f and ax to plot
+        into.
     """
     # Choose start date
     if start_date is None:
@@ -141,8 +143,13 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     for to_plot in to_plot_f_l:
         # Make figure
         figsize = (7, 3.75 * len(to_plot))
-        f, axa = plt.subplots(len(to_plot), 1, figsize=figsize, squeeze=False)
-        f.subplots_adjust(top=.95, bottom=.075)
+        if f is None and ax is None:
+            f, axa = plt.subplots(len(to_plot), 1, figsize=figsize, squeeze=False)
+            f.subplots_adjust(top=.95, bottom=.075)
+        else:
+            # Hack for the case where ax is provided and perf_unforced_only
+            # is true
+            axa = np.array([[ax]])
         
         # Get mice and color of mice
         mice = mouse_order #piv.index.values
