@@ -287,7 +287,7 @@ def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L2', 'L3'),
         
         # Title the subplot with the session
         session = sub_sbvdf_row['session']
-        ax.set_title(session)
+        ax.set_title(session, size='small')
         
         # Try to construct the meaned frames
         try:
@@ -303,6 +303,8 @@ def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L2', 'L3'),
         else:
             BeWatch.overlays.make_overlay(sess_meaned_frames, ax, 
                 meth=overlay_meth)
+    
+    return f
 
 def display_perf_by_servo_from_day(date=None):
     """Plot perf vs servo position from all sessions from date"""
@@ -453,7 +455,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     return res_l
 
-def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
+def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     """Display the real-time plot that was shown during the session.
     
     Currently the trial_types is not saved anywhere, so we'll have to
