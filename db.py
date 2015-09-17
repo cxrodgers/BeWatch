@@ -477,8 +477,9 @@ def calculate_pivoted_performances(start_date=None, delta_days=15,
 
     if drop_perfect:
         mask = (pmdf.perf_all == 1.0) | (pmdf.perf_unforced == 1.0)
-        print "warning: dropping %d perfect sessions" % np.sum(mask)
-        pmdf = pmdf[~mask]
+        if np.sum(mask) > 0:
+            print "warning: dropping %d perfect sessions" % np.sum(mask)
+            pmdf = pmdf[~mask]
 
     # pivot on all metrics
     piv = pmdf.drop('session', 1).pivot_table(index='mouse', columns='date_s')
