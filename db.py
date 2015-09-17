@@ -438,7 +438,7 @@ def check_logfile(logfile, state_names='original'):
         }
 
 def calculate_pivoted_performances(start_date=None, delta_days=15,
-    drop_perfect=True):
+    drop_perfect=True, display_missing=False):
     """Returns pivoted performance metrics
     
     start_date : when to start calculating
@@ -489,7 +489,7 @@ def calculate_pivoted_performances(start_date=None, delta_days=15,
     missing_rows = []
     for idx, row in missing_data.iterrows():
         missing_rows.append(row['date_s'] + ' ' + row['mouse'])
-    if len(missing_rows) > 0:
+    if len(missing_rows) > 0 and display_missing:
         print "warning: missing the following sessions:"
         print "\n".join(missing_rows)
     
