@@ -367,6 +367,13 @@ def longest_unique_fit(xdata, ydata, start_fitlen=3, ss_thresh=.0003,
             ss = np.sum(resids ** 2)
             rec_l.append({'idx': idx, 'ss': ss, 'fitpoly': fitpoly})
         
+        # Test if there were no fits to analyze
+        if len(rec_l) == 0:
+            keep_going = False
+            if verbose:
+                print "no fits to threshold, breaking"
+            break
+        
         # Look at results
         rdf = pandas.DataFrame.from_records(rec_l).set_index('idx').dropna()
 
