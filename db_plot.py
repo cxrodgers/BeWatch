@@ -470,10 +470,18 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     filename = rows.irow(0)['filename']
 
     # Guess the trial types
-    trial_types = mainloop.get_trial_types(assumed_trial_types)
-    plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
-    plotter.init_handles()
-    plotter.update(filename)     
+    trial_types_to_try = [assumed_trial_types,
+        'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos']
+    for tttt in trial_types_to_try:
+        trial_types = mainloop.get_trial_types(tttt)
+        plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
+        plotter.init_handles()
+        try:
+            plotter.update(filename)     
+        except ArduFSM.plot.TrialTypesError:
+            print "warning: trying different trial types"
+            continue
+        break
     
     # Set xlim to include entire session
     trial_matrix = BeWatch.db.get_trial_matrix(session)
