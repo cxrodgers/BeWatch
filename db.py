@@ -65,7 +65,7 @@ def getstarted():
     res['mice'] = ['AM03', 'AM05', 'KF13', 'KM14', 'KF16', 'KF17', 'KF18', 'KF19', 
         'KM24', 'KM25', 'KF26', 'KF28', 'KF30', 'KF32', 'KF33', 'KF35', 'KF36',
         'KF37', 'KM38', 'KM39', 'KF40', 'KF41', 'KF42', 'KM43', 'KM44', 'KM45',
-        'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51']
+        'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51', 'KM52', 'KM53']
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3']
     
@@ -73,6 +73,14 @@ def getstarted():
         'KF13A': 'KF13',
         'AM03A': 'AM03',
         }
+
+    res['cohorts'] = [
+        ['KF32', 'KF35', 'KF37', 'KM38',],
+        ['KF42', 'KM43', 'KM44', 'KM45', 'KF47'],
+        ['KM49', 'KM50', 'KM51', 'KM52', 'KM53'],
+        ]
+    
+    res['active_mice'] = np.sum(res['cohorts'])
 
     # Known mice
     assert np.all([alias_val in res['mice'] 
@@ -437,7 +445,7 @@ def check_logfile(logfile, state_names='original'):
         }
 
 def calculate_pivoted_performances(start_date=None, delta_days=15,
-    drop_perfect=True):
+    drop_perfect=True, display_missing=False):
     """Returns pivoted performance metrics
     
     start_date : when to start calculating
@@ -476,8 +484,9 @@ def calculate_pivoted_performances(start_date=None, delta_days=15,
 
     if drop_perfect:
         mask = (pmdf.perf_all == 1.0) | (pmdf.perf_unforced == 1.0)
-        print "warning: dropping %d perfect sessions" % np.sum(mask)
-        pmdf = pmdf[~mask]
+        if np.sum(mask) > 0:
+            print "warning: dropping %d perfect sessions" % np.sum(mask)
+            pmdf = pmdf[~mask]
 
     # pivot on all metrics
     piv = pmdf.drop('session', 1).pivot_table(index='mouse', columns='date_s')
@@ -488,7 +497,7 @@ def calculate_pivoted_performances(start_date=None, delta_days=15,
     missing_rows = []
     for idx, row in missing_data.iterrows():
         missing_rows.append(row['date_s'] + ' ' + row['mouse'])
-    if len(missing_rows) > 0:
+    if len(missing_rows) > 0 and display_missing:
         print "warning: missing the following sessions:"
         print "\n".join(missing_rows)
     

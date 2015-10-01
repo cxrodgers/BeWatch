@@ -15,12 +15,7 @@ def status_check(delta_days=30):
     """Run the daily status check"""
     # For right now this same function checks for missing sessions, etc,
     # but this should be broken out
-    cohorts = [
-        ['KF30', 'KF32', 'KF35', 'KF37',],
-        ['KM38', 'KF40', 'KF41', 'KF42',],
-        ['KM43', 'KM44', 'KM45', 'KF47'],
-        ['KM49', 'KM50', 'KM51',],
-        ]
+    cohorts = BeWatch.db.getstarted()['cohorts']
     for cohort in cohorts:
         plot_pivoted_performances(keep_mice=cohort, delta_days=delta_days)
     
@@ -96,7 +91,7 @@ def plot_logfile_check(logfile, state_names='original'):
 
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     drop_perfect=True, keep_mice=None, drop_mice=None,
-    perf_unforced_only=False, by_day_of_training=False):
+    perf_unforced_only=False, by_day_of_training=False, f=None, ax=None):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -112,6 +107,8 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         rather than actual date. This is implemented very simply where null
         dates are dropped. So for instance, munged days will be dropped and
         then it will appear that they learned faster.
+    f, ax : If perf_unforced_only is True, you can provide f and ax to plot
+        into.
     """
     # Choose start date
     if start_date is None:
@@ -146,8 +143,13 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     for to_plot in to_plot_f_l:
         # Make figure
         figsize = (7, 3.75 * len(to_plot))
-        f, axa = plt.subplots(len(to_plot), 1, figsize=figsize, squeeze=False)
-        f.subplots_adjust(top=.95, bottom=.075)
+        if f is None and ax is None:
+            f, axa = plt.subplots(len(to_plot), 1, figsize=figsize, squeeze=False)
+            f.subplots_adjust(top=.95, bottom=.075)
+        else:
+            # Hack for the case where ax is provided and perf_unforced_only
+            # is true
+            axa = np.array([[ax]])
         
         # Get mice and color of mice
         mice = mouse_order #piv.index.values
@@ -285,7 +287,7 @@ def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L2', 'L3'),
         
         # Title the subplot with the session
         session = sub_sbvdf_row['session']
-        ax.set_title(session)
+        ax.set_title(session, size='small')
         
         # Try to construct the meaned frames
         try:
@@ -301,6 +303,8 @@ def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L2', 'L3'),
         else:
             BeWatch.overlays.make_overlay(sess_meaned_frames, ax, 
                 meth=overlay_meth)
+    
+    return f
 
 def display_perf_by_servo_from_day(date=None):
     """Plot perf vs servo position from all sessions from date"""
@@ -451,7 +455,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     return res_l
 
-def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
+def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     """Display the real-time plot that was shown during the session.
     
     Currently the trial_types is not saved anywhere, so we'll have to
@@ -466,14 +470,25 @@ def display_session_plot(session, assumed_trial_types='trial_types_4srvpos'):
     filename = rows.irow(0)['filename']
 
     # Guess the trial types
-    trial_types = mainloop.get_trial_types(assumed_trial_types)
-    plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
-    plotter.init_handles()
-    plotter.update(filename)     
+    trial_types_to_try = [assumed_trial_types,
+        'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos']
+    for tttt in trial_types_to_try:
+        trial_types = mainloop.get_trial_types(tttt)
+        plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
+        plotter.init_handles()
+        try:
+            plotter.update(filename)     
+        except ArduFSM.plot.TrialTypesError:
+            print "warning: trying different trial types"
+            continue
+        break
     
     # Set xlim to include entire session
     trial_matrix = BeWatch.db.get_trial_matrix(session)
     plotter.graphics_handles['ax'].set_xlim((0, len(trial_matrix)))
+    
+    # label
+    plotter.graphics_handles['f'].text(0, 0, session)
     
     plt.show()
     return plotter.graphics_handles['f']
