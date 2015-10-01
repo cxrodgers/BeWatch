@@ -65,7 +65,8 @@ def getstarted():
     res['mice'] = ['AM03', 'AM05', 'KF13', 'KM14', 'KF16', 'KF17', 'KF18', 'KF19', 
         'KM24', 'KM25', 'KF26', 'KF28', 'KF30', 'KF32', 'KF33', 'KF35', 'KF36',
         'KF37', 'KM38', 'KM39', 'KF40', 'KF41', 'KF42', 'KM43', 'KM44', 'KM45',
-        'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51', 'KM52', 'KM53']
+        'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51', 'KM52', 'KM53',
+        'KM54', 'KF57', 'KF58', 'KF59']
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3']
     
@@ -75,9 +76,10 @@ def getstarted():
         }
 
     res['cohorts'] = [
-        ['KF32', 'KF35', 'KF37', 'KM38',],
-        ['KF42', 'KM43', 'KM44', 'KM45', 'KF47'],
-        ['KM49', 'KM50', 'KM51', 'KM52', 'KM53'],
+        ['KF32', 'KF37', 'KM38',],
+        ['KF42', 'KM43', 'KM44', 'KM45'],
+        ['KM51', 'KM52', 'KM53'],
+        ['KM54', 'KF57', 'KF58', 'KF59'],
         ]
     
     res['active_mice'] = np.sum(res['cohorts'])
