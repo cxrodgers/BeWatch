@@ -588,7 +588,17 @@ def calculate_perf_metrics(trial_matrix):
     
     return rec
 
-
+def calculate_perf_by_rewside_and_servo_pos(trial_matrix):
+    gobj = trial_matrix.groupby(['rewside', 'servo_pos'])
+    rec_l = []
+    for (rwsd, sp), subdf in gobj:
+        ntots = len(subdf)
+        nhits = np.sum(subdf.outcome == 'hit')
+        rec_l.append({'rewside': rwsd, 'servo_pos': sp, 
+            'nhits': nhits, 'ntots': ntots})
+    resdf = pandas.DataFrame.from_records(rec_l)
+    resdf['perf'] = resdf['nhits'] / resdf['ntots']
+    return resdf
 
 
 
