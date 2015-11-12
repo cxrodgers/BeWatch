@@ -10,6 +10,8 @@ from ArduFSM import TrialMatrix, TrialSpeak, mainloop
 import matplotlib.pyplot as plt
 from my.plot import generate_colorbar
 import networkx as nx
+import glob
+import os
 
 def status_check(delta_days=30):
     """Run the daily status check"""
@@ -470,15 +472,26 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     filename = rows.irow(0)['filename']
 
     # Guess the trial types
-    trial_types_to_try = [assumed_trial_types,
-        'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos']
+    # Could do this by listing the stim_sets dur
+    # Or by reconstructing the types from the keyword params
+    #~ trial_types_to_try = [assumed_trial_types,
+        #~ 'trial_types_3srvpos_80pd', 'trial_types_3srvpos_95pd',
+        #~ 'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos',
+        #~ ]
+        
+    # Get the trial types by listing stim sets
+    trial_types_to_try = glob.glob(os.path.expanduser(os.path.join(
+        '/home/chris/dev/ArduFSM/stim_sets/', 'trial_types*')))        
+    trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
+    trial_types_to_try = sorted(trial_types_to_try)[::-1]
+    
     for tttt in trial_types_to_try:
         trial_types = mainloop.get_trial_types(tttt)
         plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
         plotter.init_handles()
         try:
             plotter.update(filename)     
-        except ArduFSM.plot.TrialTypesError:
+        except (ArduFSM.plot.TrialTypesError, KeyError):
             print "warning: trying different trial types"
             continue
         break
