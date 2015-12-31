@@ -480,8 +480,13 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
         #~ ]
         
     # Get the trial types by listing stim sets
-    trial_types_to_try = glob.glob(os.path.expanduser(os.path.join(
-        '/home/chris/dev/ArduFSM/stim_sets/', 'trial_types*')))        
+    trial_types_glob = os.path.join(
+        os.path.split(ArduFSM.__file__)[0],
+        'stim_sets', 'trial_types*')
+    trial_types_to_try = glob.glob(trial_types_glob)
+    
+    #os.path.expanduser(os.path.join(
+    #    '/home/chris/dev/ArduFSM/stim_sets/', 'trial_types*')))        
     trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
     trial_types_to_try = sorted(trial_types_to_try)[::-1]
     
