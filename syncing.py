@@ -474,6 +474,8 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
             light_delta = 4
         elif session_row['rig'] == 'L2':
             light_delta = 8
+        elif session_row['rig'] == 'L5':
+            light_delta = 10
         else:
             light_delta = 5
     if verbose:
