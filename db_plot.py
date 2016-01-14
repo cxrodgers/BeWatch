@@ -14,6 +14,12 @@ import glob
 import os
 
 def plot_weights(delta_days=20):
+    """Plot the weight over time.
+    
+    Returns: f, piv
+        f - Figure, one axis per cohort
+        piv - pivoted data with weight and date
+    """
     cohorts = BeWatch.db.getstarted()['cohorts']
     f, axa = plt.subplots(len(cohorts), 1, figsize=(7, 3.75 * len(cohorts)))
 
@@ -42,10 +48,10 @@ def plot_weights(delta_days=20):
         ax.set_xticks(range(len(piv)))
         labels = piv.index.format(formatter = lambda x: x.strftime('%m-%d'))
         ax.set_xticklabels(labels, rotation=45, size='small')
-        ax.legend(cohort, loc='lower left')
+        ax.legend(cohort, loc='lower left', fontsize='small')
     plt.show()
     
-    return piv
+    return f, piv
 
 def status_check(delta_days=30):
     """Run the daily status check"""
