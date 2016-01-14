@@ -13,6 +13,40 @@ import networkx as nx
 import glob
 import os
 
+def plot_weights(delta_days=20):
+    cohorts = BeWatch.db.getstarted()['cohorts']
+    f, axa = plt.subplots(len(cohorts), 1, figsize=(7, 3.75 * len(cohorts)))
+
+    # Get training data
+    data = pandas.read_excel('/home/mouse/Documents/training_plan2.xls',
+        sheetname=1)
+    data = data[['Date', 'Mouse', 'Weight']]
+    data = data.ix[len(data)-500:]
+    
+    # Fill the dates
+    data['Date'] = data['Date'].fillna(method='ffill')
+
+    # Float the weights and drop junk
+    data['Weight'] = data['Weight'].convert_objects(convert_numeric=True)
+    data = data.dropna()
+    
+    # Pivot
+    piv = data.pivot_table(index='Date', columns='Mouse', values='Weight')
+    
+    # Delta_days
+    piv = piv.ix[piv.index[-delta_days:]]
+
+    for cohort, ax in zip(cohorts, axa):
+        ax.plot(piv[cohort])
+        ax.set_xlim((0, len(piv)))
+        ax.set_xticks(range(len(piv)))
+        labels = piv.index.format(formatter = lambda x: x.strftime('%m-%d'))
+        ax.set_xticklabels(labels, rotation=45, size='small')
+        ax.legend(cohort, loc='lower left')
+    plt.show()
+    
+    return piv
+
 def status_check(delta_days=30):
     """Run the daily status check"""
     # For right now this same function checks for missing sessions, etc,
