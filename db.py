@@ -77,9 +77,9 @@ def getstarted():
         }
 
     res['cohorts'] = [
-        ['KM38', 'KM52', 'KM54', 'KF57'],
-        ['KF60', 'KF61', 'KF62'],
+        ['KM52', 'KF60', 'KF61', 'KF62'],
         ['KM63', 'KM64', 'KM65'],
+        ['KF69', 'KF70', 'KF71'],
         ]
     
     res['active_mice'] = np.sum(res['cohorts'])
