@@ -43,12 +43,14 @@ def plot_weights(delta_days=20):
     piv = piv.ix[piv.index[-delta_days:]]
 
     for cohort, ax in zip(cohorts, axa):
+        cohort = [mouse for mouse in cohort if mouse in piv.columns]
         ax.plot(piv[cohort])
         ax.set_xlim((0, len(piv)))
         ax.set_xticks(range(len(piv)))
         labels = piv.index.format(formatter = lambda x: x.strftime('%m-%d'))
         ax.set_xticklabels(labels, rotation=45, size='small')
         ax.legend(cohort, loc='lower left', fontsize='small')
+        ax.set_ylim((0, ax.get_ylim()[1]))
     plt.show()
     
     return f, piv
