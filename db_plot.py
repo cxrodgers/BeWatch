@@ -135,7 +135,8 @@ def plot_logfile_check(logfile, state_names='original'):
 
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     drop_perfect=True, keep_mice=None, drop_mice=None,
-    perf_unforced_only=False, by_day_of_training=False, f=None, ax=None):
+    perf_unforced_only=False, by_day_of_training=False, f=None, ax=None,
+    marker='s', color='auto', show_legend=True):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -153,6 +154,8 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         then it will appear that they learned faster.
     f, ax : If perf_unforced_only is True, you can provide f and ax to plot
         into.
+    marker : marker to use
+    color : if auto, will use equally spaced in jet. otherwise can be 'k'
     """
     # Choose start date
     if start_date is None:
@@ -197,7 +200,10 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         
         # Get mice and color of mice
         mice = mouse_order #piv.index.values
-        colors = generate_colorbar(len(mice), 'jet')
+        if color == 'auto':
+            colors = generate_colorbar(len(mice), 'jet')
+        else:
+            colors = [color] * len(mice)
         
         # Iterate over metrics
         for ax, metric in zip(axa.flatten(), to_plot):
@@ -218,7 +224,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
                 if by_day_of_training:
                     # We just drop all the nulls wherever they occur
                     ax.plot(pm.ix[mouse].dropna().values,
-                        color=colors[nmouse], ls='-', marker='s', mec='none',
+                        color=colors[nmouse], ls='-', marker=marker, mec='none',
                         mfc=colors[nmouse])
                 else:
                     null_mask = pm.ix[mouse].isnull().values
@@ -226,7 +232,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
                         xlabels_num[~null_mask], 
                         pm.ix[mouse].values[~null_mask], 
                         color=colors[nmouse],
-                        ls='-', marker='s', mec='none', mfc=colors[nmouse])
+                        ls='-', marker=marker, mec='none', mfc=colors[nmouse])
 
             # ylims and chance line
             if metric != 'n_trials':            
@@ -258,13 +264,14 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
                     ax.set_xticklabels([''] * len(xlabels_num))
         
         # mouse names in the top
-        ax = axa[0, 0]
-        xlims = ax.get_xlim()
-        for nmouse, (mouse, color) in enumerate(zip(mice, colors)):
-            xpos = xlims[0] + (nmouse + 0.5) / float(len(mice)) * \
-                (xlims[1] - xlims[0])
-            ax.text(xpos, 0.2, mouse, color=color, ha='center', va='center', 
-                rotation=90)
+        if show_legend:
+            ax = axa[0, 0]
+            xlims = ax.get_xlim()
+            for nmouse, (mouse, color) in enumerate(zip(mice, colors)):
+                xpos = xlims[0] + (nmouse + 0.5) / float(len(mice)) * \
+                    (xlims[1] - xlims[0])
+                ax.text(xpos, 0.2, mouse, color=color, ha='center', va='center', 
+                    rotation=90)
         
         # Store to return
         res_l.append(f)
