@@ -447,13 +447,14 @@ def check_logfile(logfile, state_names='original'):
         }
 
 def calculate_pivoted_performances(start_date=None, delta_days=15,
-    drop_perfect=True, display_missing=False):
+    drop_perfect=True, display_missing=False, stop_date=None):
     """Returns pivoted performance metrics
     
     start_date : when to start calculating
     delta_days : if start_date is None, do this many recent days
     drop_perfect : assume days with perfect performance are artefactual
         and drop them
+    stop_date  : inclusive
     """
     # Choose start date
     if start_date is None:
@@ -463,7 +464,15 @@ def calculate_pivoted_performances(start_date=None, delta_days=15,
     # Get data and add the mouse column
     bdf = get_behavior_df()
     pmdf = get_perf_metrics()
+    
+    # Add start date and mouse
     pmdf = pmdf.join(bdf.set_index('session')[['mouse', 'dt_start']], on='session')
+
+    # Filter by stop date
+    if stop_date is not None:
+        pmdf = pmdf.ix[pmdf.dt_start <= stop_date]
+    
+    # Filter by start date and drop the start date column
     pmdf = pmdf.ix[pmdf.dt_start >= start_date].drop('dt_start', 1)
     #pmdf.index = range(len(pmdf))
 

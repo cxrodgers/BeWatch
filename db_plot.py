@@ -136,7 +136,7 @@ def plot_logfile_check(logfile, state_names='original'):
 def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     drop_perfect=True, keep_mice=None, drop_mice=None,
     perf_unforced_only=False, by_day_of_training=False, f=None, ax=None,
-    marker='s', color='auto', show_legend=True):
+    marker='s', color='auto', show_legend=True, stop_date=None):
     """Plots figures of performances over times and returns list of figs
     
     start_date : when to start plotting data
@@ -156,6 +156,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
         into.
     marker : marker to use
     color : if auto, will use equally spaced in jet. otherwise can be 'k'
+    stop_date : inclusive
     """
     # Choose start date
     if start_date is None:
@@ -165,7 +166,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
     # Get pivoted unless provided
     if piv is None:
         piv = BeWatch.db.calculate_pivoted_performances(start_date=start_date,
-            drop_perfect=drop_perfect)
+            drop_perfect=drop_perfect, stop_date=stop_date)
     
     # plot each
     if perf_unforced_only:
