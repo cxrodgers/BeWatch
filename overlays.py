@@ -107,6 +107,13 @@ def make_overlay(sess_meaned_frames, ax, meth='all'):
         'close' - take closest of both
         'far' - take furthest of both
     """
+    # Hack: replace nogo with L
+    sess_meaned_frames['rewside'].replace(
+        {'nogo': 'left'}, inplace=True)
+    
+    if not np.all(np.in1d(['left', 'right'], sess_meaned_frames['rewside'].values)):
+        return None
+    
     # Split into L and R
     if meth == 'all':
         L = np.mean(sess_meaned_frames['meaned'][
