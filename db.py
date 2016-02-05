@@ -69,7 +69,7 @@ def getstarted():
         'KM54', 'KF57', 'KF58', 'KF59', 'KF60', 'KF61', 'KF62',
         'KM63', 'KM64', 'KM65', 'KF69', 'KF71', 'KF72', 'KF73', 'KF74',]
     
-    res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6',]
+    res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6', 'B1', 'B2', 'B3', 'B4']
     
     res['aliases'] = {
         'KF13A': 'KF13',
