@@ -455,7 +455,7 @@ def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True):
     
 
 def autosync_behavior_and_video_with_houselight(session, save_result=True,
-    light_delta=40, diffsize=2, refrac=50, verbose=False):
+    light_delta=30, diffsize=2, refrac=50, verbose=False):
     """Main autosync function
     
     Loads lums and behavioral onsets from session.
@@ -480,7 +480,11 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     # Fit the data
     b2v_fit = sync_video_with_behavior(bfile, lums=lums, video_file=vfilename,
         light_delta=light_delta, diffsize=diffsize, refrac=refrac)
-    fit_v2b = my.misc.invert_linear_poly(b2v_fit)
+    if b2v_fit is None:
+        print "no fit found"
+        fit_v2b = None
+    else:
+        fit_v2b = my.misc.invert_linear_poly(b2v_fit)
 
     # Store
     if save_result:
