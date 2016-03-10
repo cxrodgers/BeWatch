@@ -248,6 +248,9 @@ def extract_duration_of_onsets2(onsets, offsets):
     onsets3 = []
     durations = []
     
+    if len(onsets) == 0:
+        return np.array([], dtype=np.int), np.array([], dtype=np.int)
+    
     # This trigger will be set after each detected duration to mask out
     # subsequent onsets greedily
     onset_trigger = np.min(onsets) - 1
@@ -413,7 +416,7 @@ def get_95prctl_r_minus_b(frame):
         frame[::2, ::2, 2].astype(np.int)).flatten()
     return np.sort(vals)[int(.95 * len(vals))]
 
-def get_or_save_lums(session, lumdir=None, meth='r-b', verbose=True):
+def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True):
     """Load lum for session from video or if available from cache"""    
     PATHS = BeWatch.db.get_paths()
     if lumdir is None:
@@ -452,7 +455,7 @@ def get_or_save_lums(session, lumdir=None, meth='r-b', verbose=True):
     
 
 def autosync_behavior_and_video_with_houselight(session, save_result=True,
-    light_delta=None, verbose=False):
+    light_delta=40, diffsize=2, refrac=50, verbose=False):
     """Main autosync function
     
     Loads lums and behavioral onsets from session.
@@ -468,62 +471,16 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
     session_row = sbvdf.ix[session]
     guess_vvsb_start = session_row['guess_vvsb_start']
     vfilename = session_row['filename_video']
-
-    if light_delta is None:
-        if session_row['rig'] == 'L1':
-            light_delta = 4
-        elif session_row['rig'] == 'L2':
-            light_delta = 8
-        elif session_row['rig'] == 'L5':
-            light_delta = 10
-        else:
-            light_delta = 5
-    if verbose:
-        print "using light_delta: ", light_delta
+    bfile = session_row['filename']
 
     # Get the lums ... this takes a while
+    # We cache it here so that sync_video_with_behavior doesn't have to
     lums = get_or_save_lums(session, verbose=verbose)
 
-    # Get onsets and durations
-    onsets, durations = extract_onsets_and_durations(lums, 
-        delta=light_delta, diffsize=3, refrac=5)
-
-    # Same data from ardulines
-    light_on, light_off = get_light_times_from_behavior_file(session)
-
-    # Subtract test_guess_vvsb from the behavior data
-    light_on = light_on - guess_vvsb_start
-    light_off = light_off - guess_vvsb_start
-
-    # Divide by XXX fps in the video data
-    onsets = onsets / 29.97
-    durations = durations / 29.97
-    
-    # TODO: Try subtracting the video duration from the video timestamps,
-    # I bet it will result in a near zero offset.
-    
-    # A crude initial guess strategy
-    # We need to get rid of the ones that were clearly from other sessions
-    # in the same video. We've already applied vvsb guess to light_on,
-    # the behavioral data, so use the min and max from this to mask the 
-    # video data
-    vmask_min = np.nanmin(light_on)
-    vmask_max = np.nanmax(light_on)
-    masked_onsets = onsets[(onsets > vmask_min) & (onsets < vmask_max)]
-
-    # Fit from behavior to video, because we want to start with good
-    # video onsets and go from there.
-    for ss_thresh in [.0003, .001, .003]:
-        best_fitpoly = longest_unique_fit(light_on, masked_onsets, 
-            start_fitlen=3, ss_thresh=ss_thresh)
-        if best_fitpoly is not None:
-            break
-
-    # Invert fit to go from video to behavior
-    if best_fitpoly is None:
-        print "warning: cannot sync", session
-        return None
-    fit_v2b = my.misc.invert_linear_poly(best_fitpoly)
+    # Fit the data
+    b2v_fit = sync_video_with_behavior(bfile, lums=lums, video_file=vfilename,
+        light_delta=light_delta, diffsize=diffsize, refrac=refrac)
+    fit_v2b = my.misc.invert_linear_poly(b2v_fit)
 
     # Store
     if save_result:
@@ -556,3 +513,50 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None, **kwargs):
         else:
             print session
             autosync_behavior_and_video_with_houselight(session, **kwargs)
+
+def sync_video_with_behavior(bfile, lums=None, video_file=None,
+    light_delta=75, diffsize=2, refrac=50,
+    assumed_fps=30.):
+    """Sync video with behavioral file
+    
+    Uses decrements in luminance and the backlight signal to do the sync.
+    Assumes the backlight decrement is at the time of entry to state 1.
+    
+    The luminance signal will be inverted in order to detect decrements.
+    Assumes video frame rates is 30fps, regardless of actual frame rate.
+    And fits the behavior to the video based on that.
+    
+    bfile : behavior log, used to extract state change times
+    lums : luminances by frame, if pre-calculated
+    video_file : if lums is None, then calculates them using this
+        video_file
+    
+    See BeWatch.syncing.extract_onsets_and_durations for details on
+    light_delta, diffsize, and refrac.
+    """    
+    # Get the mean luminances
+    # Would this be significantly faster if we spatially downsampled?
+    # Or used ffmpeg's native calculations?
+    if lums is None:
+        print "loading luminances ... this will take a while"    
+        lums = my.video.process_chunks_of_video(video_file, n_frames=np.inf)
+
+    # Get onsets and durations
+    onsets, durations = extract_onsets_and_durations(-lums, 
+        delta=light_delta, diffsize=diffsize, refrac=refrac)
+
+    # Convert to seconds in the spurious timebase
+    v_onsets = onsets / assumed_fps
+
+    # Get the data from Ardulines
+    lines = ArduFSM.TrialSpeak.read_lines_from_file(bfile)
+    parsed_df_by_trial = \
+        ArduFSM.TrialSpeak.parse_lines_into_df_split_by_trial(lines)
+
+    # Find the time of transition into state 1
+    backlight_times = ArduFSM.TrialSpeak.identify_state_change_times(
+        parsed_df_by_trial, state1=1, show_warnings=True)
+
+    # Find the fit
+    b2v_fit = longest_unique_fit(v_onsets, backlight_times)    
+    return b2v_fit
