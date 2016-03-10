@@ -251,14 +251,28 @@ def timedelta_to_seconds2(val):
     """More preferred ... might have been broken in old versions."""
     return val / np.timedelta64(1, 's')
 
-def make_overlays_from_all_fits(overwrite_frames=False, savefig=True):
-    """Makes overlays for all available sessions"""
+def make_overlays_from_fits_for_day(overwrite_frames=False, savefig=True,
+    date=None):
+    """Makes overlays for date
+    
+    First chooses sessions to process: those taht have manual sync and 
+    are from the target date.
+    Then calls make_overlays_from_fits on each session
+    """
     # Load data
     sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
     msdf = BeWatch.db.get_manual_sync_df()
+    sbvdf_dates = sbvdf['dt_end'].apply(lambda dt: dt.date())
+
+    # Set to most recent date in database if None
+    if date is None:
+        date = sbvdf_dates.max()
     
+    # Choose the ones to process
+    display_dates = sbvdf.ix[sbvdf_dates == date]
+
     # Join all the dataframes we need
-    jdf = sbvdf.join(msdf, on='session', how='right')
+    jdf = display_dates.join(msdf, on='session', how='inner')
 
     # Do each
     for session in jdf.session:
