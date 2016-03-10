@@ -366,8 +366,7 @@ def dump_frames_at_retraction_time(metadata, session_dir):
 
     # Fit to video times
     fit = metadata['fit0'], metadata['fit1']
-    video_times = trials_info['time_retract'].values - \
-        metadata['guess_vvsb_start']
+    video_times = trials_info['time_retract'].values
     trials_info['time_retract_vbase'] = np.polyval(fit, video_times)
     
     # Mask out any frametimes that are before or after the video
