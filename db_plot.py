@@ -301,7 +301,7 @@ def display_session_plots_from_day(date=None):
         f_l.append(f)
     return f_l
 
-def display_overlays_by_rig_from_day(date=None, rigs=('L1', 'L3', 'L5', 'L6'),
+def display_overlays_by_rig_from_day(date=None, rigs=('B1', 'B2', 'B3', 'B4'),
     overlay_meth='all'):
     """Plot all overlays from each rig to check positioning
     
