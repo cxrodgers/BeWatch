@@ -189,7 +189,7 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
             behavior_filename=jdf.loc[session, 'filename'], 
             video_filename=jdf.loc[session, 'filename_video'],
             b2v_fit=(jdf.loc[session, 'fit0'], jdf.loc[session, 'fit1']),
-            verbose=True)
+            verbose=False)
         my.misc.pickle_dump(trial_number2frame, cache_filename)
 
     # Keep only those trials that we found images for
@@ -223,7 +223,7 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
         plt.show()    
 
 def extract_frames_at_retraction_times(behavior_filename, video_filename, 
-    b2v_fit, verbose=True):
+    b2v_fit, verbose=False):
     """Extract the frame at each servo retraction time
     
     Returns: dict from trial number to frame
