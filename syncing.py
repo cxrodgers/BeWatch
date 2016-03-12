@@ -482,16 +482,13 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
         light_delta=light_delta, diffsize=diffsize, refrac=refrac)
     if b2v_fit is None:
         print "no fit found"
-        fit_v2b = None
-    else:
-        fit_v2b = my.misc.invert_linear_poly(b2v_fit)
 
     # Store
     if save_result:
-        if fit_v2b is not None:
-            BeWatch.db.set_manual_bv_sync(session, fit_v2b)
+        if b2v_fit is not None:
+            BeWatch.db.set_manual_bv_sync(session, b2v_fit)
 
-    return fit_v2b
+    return b2v_fit
 
 
 def autosync_behavior_and_video_with_houselight_from_day(date=None, **kwargs):
