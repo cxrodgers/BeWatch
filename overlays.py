@@ -10,15 +10,6 @@ import matplotlib.pyplot as plt
 import my.plot
 import BeWatch
 
-def load_frames_by_trial(frame_dir, trials_info):
-    """Read all trial%03d.png in frame_dir and return as dict"""
-    trialnum2frame = {}
-    for trialnum in trials_info.index:
-        filename = os.path.join(frame_dir, 'trial%03d.png' % trialnum)
-        if os.path.exists(filename):
-            im = scipy.misc.imread(filename, flatten=True)
-            trialnum2frame[trialnum] = im    
-    return trialnum2frame
 
 def mean_frames_by_choice(trials_info, trialnum2frame):
     # Keep only those trials that we found images for
@@ -37,64 +28,6 @@ def mean_frames_by_choice(trials_info, trialnum2frame):
     resdf_choice = pandas.DataFrame.from_records(res)
 
     return resdf_choice
-
-def calculate_performance(trials_info, p_servothrow):
-    """Use p_servothrow to calculate performance by stim number"""
-    rec_l = []
-    
-    # Assign pos_delta
-    raw_servo_positions = np.unique(trials_info.servo_position)
-    if len(raw_servo_positions) == 1:
-        pos_delta = 25
-    else:
-        pos_delta = raw_servo_positions[1] - raw_servo_positions[0]
-    p_servothrow.pos_delta = pos_delta
-    
-    # Convert
-    ti2 = p_servothrow.assign_trial_type_to_trials_info(trials_info)
-    
-    # Perf by ST and by SN
-    gobj = ti2.groupby(['rewside', 'servo_intpos', 'stim_number'])
-    for (rewside, servo_intpos, stim_number), sub_ti in gobj:
-        nhits, ntots = ArduFSM.trials_info_tools.calculate_nhit_ntot(sub_ti)
-        if ntots > 0:
-            rec_l.append({
-                'rewside': rewside, 'servo_intpos': servo_intpos,
-                'stim_number': stim_number,
-                'perf': nhits / float(ntots),
-                })
-
-    # Form dataframe
-    df = pandas.DataFrame.from_records(rec_l)
-    return df
-
-
-
-def plot_side_perf(ax, perf):
-    """Plot performance on each side vs servo position"""
-    colors = ['b', 'r']
-    for rewside in [0, 1]:
-        # Form 2d perf matrix for this side by unstacking
-        sideperf = perf[rewside].unstack() # servo on rows, stimnum on cols
-        yvals = map(int, sideperf.index)
-        
-        # Mean over stim numbers
-        meaned_sideperf = sideperf.mean(axis=0)
-        
-        # Plot
-        ax.plot(yvals, sideperf.mean(axis=1), color=colors[rewside])
-    
-    # Avg over sides
-    meaned = perf.unstack(1).mean()
-    ax.plot(yvals, meaned, color='k')
-    
-    ax.set_xlabel('servo position')
-    ax.set_ylim((0, 1))
-    ax.set_yticks((0, .5, 1))
-    ax.set_xticks(yvals) # because on rows
-    
-    ax.plot(ax.get_xlim(), [.5, .5], 'k:')
-
 
 def make_overlay(sess_meaned_frames, ax, meth='all'):
     """Plot various overlays
@@ -168,75 +101,6 @@ def make_overlay(sess_meaned_frames, ax, meth='all'):
 
     return C
 
-
-def cached_dump_frames_at_retraction_times(rows, frame_dir='./frames'):
-    """Wrapper around dump_frames_at_retraction_time
-    
-    Repeats call for each row in rows, as long as the subdir doesn't exist.
-    """
-    if not os.path.exists(frame_dir):
-        print "auto-creating", frame_dir
-        os.mkdir(frame_dir)
-
-    # Iterate over sessions
-    for idx in rows.index:
-        # Something very strange here where iterrows distorts the dtype
-        # of the object arrays
-        row = rows.ix[idx]
-
-        # Set up output_dir and continue if already exists
-        output_dir = os.path.join(frame_dir, row['behave_filename'])
-        if os.path.exists(output_dir):
-            continue
-        else:
-            print "auto-creating", output_dir
-            os.mkdir(output_dir)
-            print output_dir
-
-        # Dump the frames
-        dump_frames_at_retraction_time(row, session_dir=output_dir)
-
-
-
-def generate_meaned_frames(session):
-    """Generates the 'sess_meaned_frames', split by side and servo.
-    """
-    # Load data
-    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
-    msdf = BeWatch.db.get_manual_sync_df()
-    PATHS = BeWatch.db.get_paths()
-
-    # Join all the dataframes we need and check that session is in there
-    jdf = sbvdf.join(msdf, on='session', how='right')
-    metadata = jdf[jdf.session == session]
-    if len(metadata) != 1:
-        raise ValueError("session %s not found for overlays" % session)
-    metadata = metadata.irow(0)
-    
-    # Dump the frames
-    frame_dir = os.path.join(PATHS['database_root'], 'frames', session)
-    if not os.path.exists(frame_dir):
-        raise ValueError("no frames for %s, run make_overlays_for_all_fits")
-
-    # Reload the frames
-    trial_matrix = BeWatch.db.get_trial_matrix(session)
-    trialnum2frame = load_frames_by_trial(frame_dir, trial_matrix)
-
-    # Keep only those trials that we found images for
-    trial_matrix = trial_matrix.ix[sorted(trialnum2frame.keys())]
-
-    # Split on side, servo_pos, stim_number
-    res = []
-    gobj = trial_matrix.groupby(['rewside', 'servo_pos', 'stepper_pos'])
-    for (rewside, servo_pos, stim_number), subti in gobj:
-        meaned = np.mean([trialnum2frame[trialnum] for trialnum in subti.index],
-            axis=0)
-        res.append({'rewside': rewside, 'servo_pos': servo_pos, 
-            'stim_number': stim_number, 'meaned': meaned})
-    resdf = pandas.DataFrame.from_records(res)    
-    
-    return resdf
-
 def timedelta_to_seconds1(val):
     """Often it ends up as a 0d timedelta array.
     
@@ -279,11 +143,12 @@ def make_overlays_from_fits_for_day(overwrite_frames=False, savefig=True,
         make_overlays_from_fits(session, overwrite_frames=overwrite_frames,
             savefig=savefig)
 
-def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
+def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
+    verbose=True):
     """Given a session name, generates overlays.
 
     If savefig: then it will save the figure in behavior_db/overlays
-        However, if that file already exists, it will exist immediately.
+        However, if that file already exists, it will exit immediately.
     If overwrite_frames: then it will always redump the frames
     """
     # Load data
@@ -296,36 +161,46 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
         savename = os.path.join(PATHS['database_root'], 'overlays',
             session + '.png')
         if os.path.exists(savename):
+            if verbose:
+                print "overlay image already exists, returning:", savename
             return
-    print session
     
     # Join all the dataframes we need and check that session is in there
-    jdf = sbvdf.join(msdf, on='session', how='right')
-    metadata = jdf[jdf.session == session]
-    if len(metadata) != 1:
-        raise ValueError("session %s not found for overlays" % session)
-    metadata = metadata.irow(0)
+    jdf = sbvdf.join(msdf, on='session', how='inner').set_index('session')
+    if session not in jdf.index:
+        raise ValueError("no syncing information for %s" % session)
     
-    # Dump the frames
-    frame_dir = os.path.join(PATHS['database_root'], 'frames', session)
-    if not os.path.exists(frame_dir):
-        os.mkdir(frame_dir)
-        dump_frames_at_retraction_time(metadata, frame_dir)
-    elif overwrite_frames:
-        dump_frames_at_retraction_time(metadata, frame_dir)
-
-    # Reload the frames
-    trial_matrix = BeWatch.db.get_trial_matrix(session)
-    trialnum2frame = load_frames_by_trial(frame_dir, trial_matrix)
+    # Set the filename for the cached trial_number2frame
+    cache_filename = os.path.join(PATHS['database_root'], 'frames', 
+        session + '.trial_number2frame.pickle')
+    
+    # Generate or reload the cache
+    if not overwrite_frames and os.path.exists(cache_filename):
+        if verbose:
+            print "reloading", cache_filename
+        trial_number2frame = my.misc.pickle_load(cache_filename)
+    else:
+        if jdf.loc[session, 
+            ['filename', 'filename_video', 'fit0', 'fit1']].isnull().any():
+            raise ValueError("not enough syncing information for %s" % session)
+        if verbose:
+            print "generating", cache_filename
+        trial_number2frame = extract_frames_at_retraction_times(
+            behavior_filename=jdf.loc[session, 'filename'], 
+            video_filename=jdf.loc[session, 'filename_video'],
+            b2v_fit=(jdf.loc[session, 'fit0'], jdf.loc[session, 'fit1']),
+            verbose=True)
+        my.misc.pickle_dump(trial_number2frame, cache_filename)
 
     # Keep only those trials that we found images for
-    trial_matrix = trial_matrix.ix[sorted(trialnum2frame.keys())]
+    trial_matrix = BeWatch.db.get_trial_matrix(session)
+    trial_matrix = trial_matrix.ix[sorted(trial_number2frame.keys())]
 
     # Split on side, servo_pos, stim_number
     res = []
     gobj = trial_matrix.groupby(['rewside', 'servo_pos', 'stepper_pos'])
     for (rewside, servo_pos, stim_number), subti in gobj:
-        meaned = np.mean([trialnum2frame[trialnum] for trialnum in subti.index],
+        meaned = np.mean([trial_number2frame[trialnum] for trialnum in subti.index],
             axis=0)
         res.append({'rewside': rewside, 'servo_pos': servo_pos, 
             'stim_number': stim_number, 'meaned': meaned})
@@ -347,39 +222,37 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True):
     else:
         plt.show()    
 
-
-def dump_frames_at_retraction_time(metadata, session_dir):
-    """Dump the retraction time frame into a subdirectory.
+def extract_frames_at_retraction_times(behavior_filename, video_filename, 
+    b2v_fit, verbose=True):
+    """Extract the frame at each servo retraction time
     
-    metadata : row containing behavior info, video info, and fit info    
+    Returns: dict from trial number to frame
     """
-    # Load trials info
-    trials_info = TrialMatrix.make_trial_matrix_from_file(metadata['filename'])
-    splines = TrialSpeak.load_splines_from_file(metadata['filename'])
-
-    # Insert servo retract time
-    lines = TrialSpeak.read_lines_from_file(metadata['filename'])
-    parsed_df_split_by_trial = \
-        TrialSpeak.parse_lines_into_df_split_by_trial(lines)    
-    trials_info['time_retract'] = TrialSpeak.identify_servo_retract_times(
-        parsed_df_split_by_trial)        
+    # Get the state change times
+    state_change_times = ArduFSM.TrialSpeak.identify_servo_retract_times(
+        behavior_filename)
 
     # Fit to video times
-    fit = metadata['fit0'], metadata['fit1']
-    video_times = trials_info['time_retract'].values
-    trials_info['time_retract_vbase'] = np.polyval(fit, video_times)
+    state_change_times_vbase = pandas.Series(
+        index=state_change_times.index,
+        data=np.polyval(b2v_fit, state_change_times.values / 1000.)
+        )
     
     # Mask out any frametimes that are before or after the video
-    duration_s = timedelta_to_seconds2(metadata['duration_video'])
-    BeWatch.syncing.mask_by_buffer_from_end(trials_info['time_retract_vbase'], 
-        end_time=duration_s, buffer=10)
+    video_duration = my.video.get_video_duration(video_filename)
+    state_change_times_vbase.ix[
+        (state_change_times_vbase < 1) |
+        (state_change_times_vbase > video_duration - 1)
+        ] = np.nan
     
-    # Dump frames
-    frametimes_to_dump = trials_info['time_retract_vbase'].dropna()
-    for trialnum, frametime in trials_info['time_retract_vbase'].dropna().iterkv():
-        output_filename = os.path.join(session_dir, 'trial%03d.png' % trialnum)
-        my.video.frame_dump(metadata['filename_video'], 
-            frametime, meth='ffmpeg fast',
-            output_filename=output_filename)
-
-
+    # Extract frames
+    trial_number2frame = {}
+    for trial_number, retract_time in state_change_times_vbase.dropna().iterkv():
+        if verbose:
+            print trial_number
+        frame, stdout, stderr = my.video.get_frame(
+            video_filename, frametime=retract_time, pix_fmt='gray')
+        trial_number2frame[trial_number] = frame
+    
+    # Save
+    return trial_number2frame
