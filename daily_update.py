@@ -97,32 +97,24 @@ def daily_update_overlap_behavior_and_video():
     behavior_files_df = BeWatch.db.get_behavior_df()
     video_files_df = BeWatch.db.get_video_df()
 
-    # Find the best overlap
-    new_behavior_files_df = BeWatch.db.find_best_overlap_video(
-        behavior_files_df, video_files_df)
-    
-    # Join video info
-    joined = new_behavior_files_df.join(video_files_df, 
-        on='best_video_index', rsuffix='_video')
+    # Load the cached sbvdf so we don't waste time resyncing
+    sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
 
-    # Drop on unmatched
-    joined = joined.dropna()
-    
-    # Add the delta-time guess
-    # Negative timedeltas aren't handled by to_timedelta in the loading function
-    # So store as seconds here
-    guess = joined['dt_start_video'] - joined['dt_start']
-    joined['guess_vvsb_start'] = guess / np.timedelta64(1, 's')
-    
+    # Find the best overlap
+    new_sbvdf = BeWatch.db.find_best_overlap_video(
+        behavior_files_df, video_files_df,
+        cached_sbvdf=sbvdf,
+        always_prefer_mkv=True)
+        
     # locale-ify
-    joined['filename'] = joined['filename'].str.replace(
+    new_sbvdf['filename'] = new_sbvdf['filename'].str.replace(
         PATHS['behavior_dir'], '$behavior_dir$')    
-    joined['filename_video'] = joined['filename_video'].str.replace(
+    new_sbvdf['filename_video'] = new_sbvdf['filename_video'].str.replace(
         PATHS['video_dir'], '$video_dir$')    
         
     # Save
     filename = os.path.join(PATHS['database_root'], 'behave_and_video.csv')
-    joined.to_csv(filename, index=False)
+    new_sbvdf.to_csv(filename, index=False)
 
 def daily_update_trial_matrix(start_date=None, verbose=False):
     """Cache the trial matrix for every session

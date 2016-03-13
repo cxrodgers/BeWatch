@@ -686,8 +686,12 @@ def search_for_behavior_and_video_files(
     
     return joined, video_files_df
 
-def find_best_overlap_video(behavior_files_df, video_files_df):
+def find_best_overlap_video(behavior_files_df, video_files_df,
+    cached_sbvdf=None, always_prefer_mkv=True):
     """Find the video file with the best overlap for each behavior file.
+    
+    cached_sbvdf: if not None, then will skip processing anything
+        in the cache, and just add the new stuff
     
     Returns : behavior_files_df, but now with a best_video_index and
         a best_video_overlap columns. Suitable for the following:
@@ -701,8 +705,20 @@ def find_best_overlap_video(behavior_files_df, video_files_df):
     behavior_files_df['best_video_index'] = -1
     behavior_files_df['best_video_overlap'] = 0.0
     
+    # Find the very first video file so we don't waste time analyzing
+    # behavior from earlier
+    earliest_video_start = video_files_df['dt_start'].min()
+    
     # Something is really slow in this loop
     for bidx, brow in behavior_files_df.iterrows():
+        if brow['dt_start'] < earliest_video_start:
+            # No video old enough
+            continue
+        
+        if cached_sbvdf is not None and brow['session'] in cached_sbvdf.session.values:
+            # Already synced
+            continue
+        
         # Find the overlap between this behavioral session and video sessions
         # from the same rig
         latest_start = video_files_df[
@@ -718,6 +734,24 @@ def find_best_overlap_video(behavior_files_df, video_files_df):
         if len(overlap) == 0:
             # ie, no video files found
             continue
+        positive_overlaps = overlap[overlap > 0]
+        if len(positive_overlaps) == 0:
+            # ie, no overlapping videos
+            continue
+        
+        # Prefer any MKV over any MP4 files
+        if always_prefer_mkv:
+            # Find out if any positive overlaps are from mkv
+            file_extensions = video_files_df.ix[
+                positive_overlaps.index]['filename'].apply(
+                lambda s: os.path.splitext(s)[1])
+            
+            # If so, keep only those
+            if np.any(file_extensions == '.mkv'):
+                overlap = overlap[positive_overlaps.index[
+                    file_extensions == '.mkv']]
+
+        # Extract the index into video_files_df of the best match
         vidx_max_overlap = overlap.argmax()
         
         # Convert from numpy timedelta64 to a normal number
@@ -728,7 +762,25 @@ def find_best_overlap_video(behavior_files_df, video_files_df):
             behavior_files_df.loc[bidx, 'best_video_index'] = vidx_max_overlap
             behavior_files_df.loc[bidx, 'best_video_overlap'] = max_overlap_sec
 
-    return behavior_files_df
+    # Join video info
+    joined = behavior_files_df.join(video_files_df, 
+        on='best_video_index', rsuffix='_video')
+
+    # Drop on unmatched
+    joined = joined.dropna()
+
+    # Concat with cache, if necessary
+    if cached_sbvdf is not None:
+        if len(joined) == 0:
+            new_sbvdf = cached_sbvdf
+        else:
+            new_sbvdf = pandas.concat([cached_sbvdf, joined], axis=0, 
+                ignore_index=True, verify_integrity=True)
+
+    if len(new_sbvdf) == 0:
+        raise ValueError("synced behavior/video frame is empty")
+
+    return new_sbvdf
 
 def parse_behavior_filenames(all_behavior_files, clean=True):
     """Given list of ardulines files, extract metadata and return as df.
