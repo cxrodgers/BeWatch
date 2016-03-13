@@ -792,26 +792,18 @@ def parse_video_filenames(video_filenames, verbose=False,
     (using ffprobe).
     
     If cached_video_files_df is given:
-        1) Checks that everything in cached_video_files_df.filename is also in
-        video_filenames, else errors (because probably something
-        has gone wrong, like the filenames are misformatted).
-        2) Skips the probing of any video file already present in 
+        1) Skips the probing of any video file already present in 
         cached_video_files_df
-        3) Concatenates the new video files info with cached_video_files_df
+        2) Concatenates the new video files info with cached_video_files_df
         and returns.
     
     Returns:
         video_files_df, a DataFrame with the following columns: 
             dt_end dt_start duration filename rig
     """
-    # Error check
-    if cached_video_files_df is not None and not np.all([f in video_filenames 
-        for f in cached_video_files_df.filename]):
-        raise ValueError("cached_video_files contains unneeded video files")
-    
     # Extract info from filename
     # directory, rigname, datestring, extension
-    pattern = '(\S+)/(\S+)\.(\d+)\.(\S+)'
+    pattern = '(\S+)/(\S+)[\.|-](\d+)\.(\S+)'
     rec_l = []
 
     for video_filename in video_filenames:
@@ -828,35 +820,53 @@ def parse_video_filenames(video_filenames, verbose=False,
             continue
         dir, rig, date_s, video_ext = m.groups()
         
-        # Parse the end time using the datestring
-        video_end_time = datetime.datetime.strptime(date_s, '%Y%m%d%H%M%S')
+        if video_ext == 'mp4':
+            ## Old way, the datestring is the end time
+            # Parse the end time using the datestring
+            video_end_time = datetime.datetime.strptime(date_s, '%Y%m%d%H%M%S')
 
-        # Video duration and hence start time
-        proc = subprocess.Popen(['ffprobe', video_filename],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        res = proc.communicate()[0]
+            # Video duration and hence start time
+            proc = subprocess.Popen(['ffprobe', video_filename],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            res = proc.communicate()[0]
 
-        # Check if ffprobe failed, probably on a bad file
-        if 'Invalid data found when processing input' in res:
-            # Just store what we know so far and warn
-            rec_l.append({'filename': video_filename, 'rig': rig,
-                'dt_end': video_end_time,
-                })            
-            if verbose:
-                print "Invalid data found by ffprobe in %s" % video_filename
-            continue
+            # Check if ffprobe failed, probably on a bad file
+            if 'Invalid data found when processing input' in res:
+                # Just store what we know so far and warn
+                rec_l.append({'filename': video_filename, 'rig': rig,
+                    'dt_end': video_end_time,
+                    })            
+                if verbose:
+                    print "Invalid data found by ffprobe in %s" % video_filename
+                continue
 
-        # Parse out start time
-        duration_match = re.search("Duration: (\S+),", res)
-        assert duration_match is not None and len(duration_match.groups()) == 1
-        video_duration_temp = datetime.datetime.strptime(
-            duration_match.groups()[0], '%H:%M:%S.%f')
-        video_duration = datetime.timedelta(
-            hours=video_duration_temp.hour, 
-            minutes=video_duration_temp.minute, 
-            seconds=video_duration_temp.second,
-            microseconds=video_duration_temp.microsecond)
-        video_start_time = video_end_time - video_duration
+            # Parse out start time
+            duration_match = re.search("Duration: (\S+),", res)
+            assert duration_match is not None and len(duration_match.groups()) == 1
+            video_duration_temp = datetime.datetime.strptime(
+                duration_match.groups()[0], '%H:%M:%S.%f')
+            video_duration = datetime.timedelta(
+                hours=video_duration_temp.hour, 
+                minutes=video_duration_temp.minute, 
+                seconds=video_duration_temp.second,
+                microseconds=video_duration_temp.microsecond)
+            video_start_time = video_end_time - video_duration
+        elif video_ext == 'mkv':
+            ## New way, the date string is the start time of the behavior
+            # Let's use modification time as end time
+            # Duration from mediainfo
+            # And extract start time from that
+            try:
+                video_duration = my.video.get_video_duration2(video_filename,
+                    return_as_timedelta=True)
+            except ValueError:
+                # eg, corrupted file
+                if verbose:
+                    print "cannot get duration, corrupted?: %s" % video_filename
+                continue
+            video_end_time = datetime.datetime.fromtimestamp(
+                my.misc.get_file_time(video_filename))
+            video_start_time = video_end_time - video_duration
         
         # Store
         rec_l.append({'filename': video_filename, 'rig': rig,
@@ -875,6 +885,8 @@ def parse_video_filenames(video_filenames, verbose=False,
             resdf = pandas.concat([resdf, cached_video_files_df], axis=0, 
                 ignore_index=True, verify_integrity=True)
     
+    if len(resdf) == 0:
+        raise ValueError("video data frame is empty")
     
     # Sort and reindex
     resdf = resdf.sort('dt_start')

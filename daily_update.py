@@ -48,20 +48,29 @@ def daily_update_behavior():
         raise ValueError("read/write error in behavior database")
     
 def daily_update_video():
-    """Update video database"""
+    """Update video database
+    
+    Finds video files in PATHS['video_dir']
+    Extracts timing information from them
+    Updates video.csv on disk.
+    """
     PATHS = BeWatch.db.get_paths()
     # find video files
-    video_files = glob.glob(os.path.join(PATHS['video_dir'], '*.mp4'))
+    mp4_files = glob.glob(os.path.join(PATHS['video_dir'], '*.mp4'))
+    mkv_files = glob.glob(os.path.join(PATHS['video_dir'], '*.mkv'))
+    video_files = mp4_files + mkv_files
     
-    # TODO: load existing video files and use as cache
-    # TODO: error check here; if no videos; do not trash cache
+    # Load existing video file dataframe and use as a cache
+    # This way we don't have to reprocess videos we already know about
+    vdf = BeWatch.db.get_video_df()    
     
     # Parse into df
     video_files_df = BeWatch.db.parse_video_filenames(
-        video_files, verbose=False,
-        cached_video_files_df=None)
+        video_files, verbose=True,
+        cached_video_files_df=vdf)
 
-    # store copy for error check
+    # store copy for error check (to ensure that localeifying and
+    # writing to disk didn't corrupt anything)
     video_files_df_local = video_files_df.copy()
 
     # locale-ify
@@ -73,6 +82,7 @@ def daily_update_video():
     video_files_df.to_csv(filename, index=False)    
     
     # Test the reading/writing is working
+    # Although if it failed, it's too late
     vdf = BeWatch.db.get_video_df()
     if not (video_files_df_local == vdf).all().all():
         raise ValueError("read/write error in video database")    
@@ -94,7 +104,7 @@ def daily_update_overlap_behavior_and_video():
     # Join video info
     joined = new_behavior_files_df.join(video_files_df, 
         on='best_video_index', rsuffix='_video')
-    
+
     # Drop on unmatched
     joined = joined.dropna()
     
