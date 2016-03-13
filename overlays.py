@@ -239,7 +239,7 @@ def extract_frames_at_retraction_times(behavior_filename, video_filename,
         )
     
     # Mask out any frametimes that are before or after the video
-    video_duration = my.video.get_video_duration(video_filename)
+    video_duration = my.video.get_video_duration2(video_filename)
     state_change_times_vbase.ix[
         (state_change_times_vbase < 1) |
         (state_change_times_vbase > video_duration - 1)
