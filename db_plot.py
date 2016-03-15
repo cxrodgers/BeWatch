@@ -342,19 +342,8 @@ def display_overlays_by_rig_from_day(date=None, rigs=('B1', 'B2', 'B3', 'B4'),
         ax.set_title(session, size='small')
         
         # Try to construct the meaned frames
-        try:
-            sess_meaned_frames = BeWatch.overlays.generate_meaned_frames(
-                session)
-        except:
-            sess_meaned_frames = None
-        
-        # Plot
-        if sess_meaned_frames is None:
-            print "no frames for", session
-            ax.set_visible(False)
-        else:
-            BeWatch.overlays.make_overlay(sess_meaned_frames, ax, 
-                meth=overlay_meth)
+        BeWatch.overlays.make_overlays_from_fits(session, 
+            verbose=True, ax=ax, ax_meth=overlay_meth)
     
     return f
 

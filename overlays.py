@@ -144,12 +144,19 @@ def make_overlays_from_fits_for_day(overwrite_frames=False, savefig=True,
             savefig=savefig)
 
 def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
-    verbose=True):
+    verbose=True, ax=None, ax_meth='all'):
     """Given a session name, generates overlays.
 
     If savefig: then it will save the figure in behavior_db/overlays
         However, if that file already exists, it will exit immediately.
     If overwrite_frames: then it will always redump the frames
+    
+    If ax is not None:
+        Then we assume a figure has already been created and we
+        just plot into that ax. In that case we pass the parameter 'ax_meth'
+        to make_overlay, which determines the type of overlay.
+    If ax is None: we make a figure with various types of 'meth'
+        savefig only applies in this case
     """
     # Load data
     sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
@@ -157,7 +164,7 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
     PATHS = BeWatch.db.get_paths()
 
     # Choose the savename and skip if it exists
-    if savefig:
+    if ax is None and savefig:
         savename = os.path.join(PATHS['database_root'], 'overlays',
             session + '.png')
         if os.path.exists(savename):
@@ -207,20 +214,24 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
     resdf = pandas.DataFrame.from_records(res)
 
     # Make the various overlays
-    f, axa = plt.subplots(2, 3, figsize=(13, 6))
-    make_overlay(resdf, axa[0, 0], meth='all')
-    make_overlay(resdf, axa[1, 1], meth='L')
-    make_overlay(resdf, axa[1, 2], meth='R')
-    make_overlay(resdf, axa[0, 1], meth='close')
-    make_overlay(resdf, axa[0, 2], meth='far')
-    f.suptitle(session)
-    
-    # Save or show
-    if savefig:
-        f.savefig(savename)
-        plt.close(f)
+    if ax is None:
+        f, axa = plt.subplots(2, 3, figsize=(13, 6))
+        make_overlay(resdf, axa[0, 0], meth='all')
+        make_overlay(resdf, axa[1, 1], meth='L')
+        make_overlay(resdf, axa[1, 2], meth='R')
+        make_overlay(resdf, axa[0, 1], meth='close')
+        make_overlay(resdf, axa[0, 2], meth='far')
+        f.suptitle(session)
+        
+        # Save or show
+        if savefig:
+            f.savefig(savename)
+            plt.close(f)
+        else:
+            plt.show()    
     else:
-        plt.show()    
+        # plotting a certain meth into a certain ax
+        make_overlay(resdf, ax, meth=ax_meth)
 
 def extract_frames_at_retraction_times(behavior_filename, video_filename, 
     b2v_fit, verbose=False):
