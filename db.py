@@ -904,10 +904,10 @@ def parse_video_filenames(video_filenames, verbose=False,
                 microseconds=video_duration_temp.microsecond)
             video_start_time = video_end_time - video_duration
         elif video_ext == 'mkv':
-            ## New way, the date string is the start time of the behavior
-            # Let's use modification time as end time
-            # Duration from mediainfo
-            # And extract start time from that
+            ## We don't know the modification time so just use the time that
+            ## the behavior was initiated as the start
+            video_start_time = datetime.datetime.strptime(date_s, '%Y%m%d%H%M%S')
+            
             try:
                 video_duration = my.video.get_video_duration2(video_filename,
                     return_as_timedelta=True)
@@ -916,9 +916,8 @@ def parse_video_filenames(video_filenames, verbose=False,
                 if verbose:
                     print "cannot get duration, corrupted?: %s" % video_filename
                 continue
-            video_end_time = datetime.datetime.fromtimestamp(
-                my.misc.get_file_time(video_filename))
-            video_start_time = video_end_time - video_duration
+                
+            video_end_time = video_start_time + video_duration
         
         # Store
         rec_l.append({'filename': video_filename, 'rig': rig,
