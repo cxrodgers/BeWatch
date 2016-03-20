@@ -79,7 +79,7 @@ def getstarted():
 
     res['cohorts'] = [
         ['KF61', 'KM63', 'KM64', 'KM65', 'KF73', 'KF74', ],
-        ['KF75', 'KF76', 'KF77'],
+        ['KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', ],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
