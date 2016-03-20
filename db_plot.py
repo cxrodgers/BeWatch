@@ -308,8 +308,9 @@ def display_overlays_by_rig_from_day(date=None, rigs=('B1', 'B2', 'B3', 'B4'),
     The 'frames' dir needs to be filled out first. The easiest way to do 
     this is to run make_overlays_from_all_fits.
     """
-    # Get df and its dates
+    # Load data
     sbvdf = BeWatch.db.get_synced_behavior_and_video_df()
+    msdf = BeWatch.db.get_manual_sync_df()
     sbvdf_dates = sbvdf['dt_end'].apply(lambda dt: dt.date())
     
     # Set to most recent date in database if None
@@ -342,8 +343,14 @@ def display_overlays_by_rig_from_day(date=None, rigs=('B1', 'B2', 'B3', 'B4'),
         ax.set_title(session, size='small')
         
         # Try to construct the meaned frames
-        BeWatch.overlays.make_overlays_from_fits(session, 
-            verbose=True, ax=ax, ax_meth=overlay_meth)
+        if session in msdf.index:
+            # Syncing information available
+            BeWatch.overlays.make_overlays_from_fits(session, 
+                verbose=True, ax=ax, ax_meth=overlay_meth)
+        else:
+            # No syncing information
+            ax.set_xticks([])
+            ax.set_yticks([])
     
     return f
 
