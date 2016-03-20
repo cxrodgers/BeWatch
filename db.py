@@ -776,6 +776,8 @@ def find_best_overlap_video(behavior_files_df, video_files_df,
         else:
             new_sbvdf = pandas.concat([cached_sbvdf, joined], axis=0, 
                 ignore_index=True, verify_integrity=True)
+    else:
+        new_sbvdf = joined
 
     if len(new_sbvdf) == 0:
         raise ValueError("synced behavior/video frame is empty")
