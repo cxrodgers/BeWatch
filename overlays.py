@@ -147,6 +147,8 @@ def make_overlays_from_fits(session, overwrite_frames=False, savefig=True,
     verbose=True, ax=None, ax_meth='all'):
     """Given a session name, generates overlays.
 
+    Compare this with db_plot.display_overlays_by_rig_from_day
+
     If savefig: then it will save the figure in behavior_db/overlays
         However, if that file already exists, it will exit immediately.
     If overwrite_frames: then it will always redump the frames
@@ -267,3 +269,31 @@ def extract_frames_at_retraction_times(behavior_filename, video_filename,
     
     # Save
     return trial_number2frame
+
+def calculate_sess_meaned_frames(trial_number2frame, trial_matrix):
+    """Mean frames based on side, servo_pos, and stepper_pos
+    
+    trial_number2frame : dict from trial number to a frame at the retraction
+        time on that trial
+    trial_matrix : DataFrame containing info about each trial
+    
+    trial_matrix is grouped on side, servo_pos, and stepper_pos, and then
+    the frames for each group of trial numbers are averaged together.
+    
+    Returns: sess_meaned_frames
+        A DataFrame with columns rewside, servo_pos, stim_number, and
+        meaned
+    """
+    # Ensure we only count frames that we have data for
+    trial_matrix = trial_matrix.ix[sorted(trial_number2frame.keys())]    
+    
+    # Split on side, servo_pos, stim_number
+    res = []
+    gobj = trial_matrix.groupby(['rewside', 'servo_pos', 'stepper_pos'])
+    for (rewside, servo_pos, stim_number), subti in gobj:
+        meaned = np.mean([trial_number2frame[trialnum] for trialnum in subti.index],
+            axis=0)
+        res.append({'rewside': rewside, 'servo_pos': servo_pos, 
+            'stim_number': stim_number, 'meaned': meaned})
+    resdf = pandas.DataFrame.from_records(res)    
+    return resdf
