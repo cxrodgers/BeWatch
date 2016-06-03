@@ -50,7 +50,7 @@ def plot_weights(delta_days=20):
         labels = piv.index.format(formatter = lambda x: x.strftime('%m-%d'))
         ax.set_xticklabels(labels, rotation=45, size='small')
         ax.legend(cohort, loc='lower left', fontsize='small')
-        ax.set_ylim((0, ax.get_ylim()[1]))
+        #~ ax.set_ylim((0, ax.get_ylim()[1]))
     plt.show()
     
     return f, piv
