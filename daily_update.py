@@ -25,26 +25,36 @@ def daily_update():
 
 def daily_update_behavior():
     """Update behavior database"""
-    # load
+    # load the current database
+    current_bdf = BeWatch.db.get_behavior_df()
+    
+    # get new records
     PATHS = BeWatch.db.get_paths()
-    behavior_files_df = BeWatch.db.search_for_behavior_files(
+    newly_added_bdf = BeWatch.db.search_for_behavior_files(
         behavior_dir=PATHS['behavior_dir'],
         clean=True)
     
+    # concatenate all existing records with all records previously in
+    # the database. for duplicates, keep the newly processed version
+    concatted = pandas.concat([current_bdf, newly_added_bdf],
+        ignore_index=True, verify_integrity=True)
+    new_bdf = concatted.drop_duplicates(subset='session',
+        take_last=True).reset_index(drop=True)
+    
     # store copy for error check
-    behavior_files_df_local = behavior_files_df.copy()
+    new_bdf_copy = new_bdf.copy()
     
     # locale-ify
-    behavior_files_df['filename'] = behavior_files_df['filename'].str.replace(
+    new_bdf['filename'] = new_bdf['filename'].str.replace(
         PATHS['behavior_dir'], '$behavior_dir$')
     
     # save
     filename = os.path.join(PATHS['database_root'], 'behavior.csv')
-    behavior_files_df.to_csv(filename, index=False)
+    new_bdf.to_csv(filename, index=False)
     
     # Test the reading/writing is working
-    bdf = BeWatch.db.get_behavior_df()
-    if not (behavior_files_df_local == bdf).all().all():
+    bdf_reloaded = BeWatch.db.get_behavior_df()
+    if not (new_bdf_copy == bdf_reloaded).all().all():
         raise ValueError("read/write error in behavior database")
     
 def daily_update_video():

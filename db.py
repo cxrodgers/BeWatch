@@ -25,28 +25,28 @@ def get_paths():
     if LOCALE == 'chris-pyramid':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/runmice',
+            'behavior_dir': '/home/chris/mnt/marvin/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
     elif LOCALE == 'marvin':
         PATHS = {
             'database_root': '/home/mouse/dev/behavior_db',
-            'behavior_dir': '/home/mouse/runmice',
+            'behavior_dir': '/home/mouse/sandbox_root',
             'video_dir': '/home/mouse/compressed_eye',
             }
 
     elif LOCALE == 'nivram':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/runmice',
+            'behavior_dir': '/home/chris/mnt/marvin/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
     elif LOCALE == 'lumps':
         PATHS = {
             'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/jack/mnt/marvin/runmice',
+            'behavior_dir': '/home/jack/mnt/marvin/sandbox_root',
             'video_dir': '/home/jack/mnt/marvin/compressed_eye',
             }
 
@@ -68,7 +68,8 @@ def getstarted():
         'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51', 'KM52', 'KM53',
         'KM54', 'KF57', 'KF58', 'KF59', 'KF60', 'KF61', 'KF62',
         'KM63', 'KM64', 'KM65', 'KF69', 'KF71', 'KF72', 'KF73', 'KF74',
-        'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83']
+        'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83',
+        'KM84', 'KM85', 'KM86', ]
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6', 'B1', 'B2', 'B3', 'B4']
     
@@ -78,9 +79,9 @@ def getstarted():
         }
 
     res['cohorts'] = [
-        ['KF61', 'KM63', 'KM64', 'KM65', 'KF73', ],
+        ['KF61', 'KM63', 'KM65', 'KF73', ],
         ['KF75', 'KF79', 'KF80', ],
-        ['KM81', 'KM82', 'KM83', ],
+        ['KM81', 'KM82', 'KM83', 'KM84', 'KM85', 'KM86', ],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
@@ -611,9 +612,8 @@ def calculate_perf_by_rewside_and_servo_pos(trial_matrix):
     resdf['perf'] = resdf['nhits'] / resdf['ntots']
     return resdf
 
-
-
-def search_for_behavior_files(behavior_dir='~/mnt/behave/runmice',
+def search_for_behavior_files(
+    behavior_dir='~/mnt/behave/runmice',
     clean=True):
     """Load behavior files into data frame.
     
@@ -628,10 +628,20 @@ def search_for_behavior_files(behavior_dir='~/mnt/behave/runmice',
     behavior_dir = os.path.expanduser(behavior_dir)
     
     # Acquire all behavior files in the subdirectories
+    # Find all saved sandboxes
+    # Then extract logfiles (and probably parameters / results) from each
+    # sandbox_name-saved/Script/logfiles/ardulines.*
+    saved_directories = sorted(glob.glob(os.path.join(behavior_dir, '*-saved')))
+    
+    # Ensure there is only one saved ardulines for each
     all_behavior_files = []
-    for subdir in gets['rigs']:
-        all_behavior_files += glob.glob(os.path.join(
-            behavior_dir, subdir, 'logfiles', 'ardulines.*'))
+    for sd in saved_directories:
+        # Skip if not TwoChoice
+        if not os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')):
+            continue
+        logfiles = glob.glob(os.path.join(sd, 'Script', 'logfiles', 'ardulines.*'))
+        assert len(logfiles) == 1
+        all_behavior_files.append(logfiles[0])
 
     # Parse out metadata for each
     behavior_files_df = parse_behavior_filenames(all_behavior_files, 
@@ -798,23 +808,24 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
     
     # Extract info from filename
     # directory, rigname, datestring, mouse
-    pattern = '(\S+)/(\S+)/logfiles/ardulines\.(\d+)\.(\S+)'
+    # date (with hyphens) - mouse - board - box - saved
+    pattern = '(\S+)-(\S+)-(\S+)-(\S+)-saved/Script/logfiles/ardulines\.(\d+)'
     rec_l = []
     for filename in all_behavior_files:
         # Match filename pattern
         m = re.match(pattern, os.path.abspath(filename))
         if m is not None:
-            dir, rig, date_s, mouse = m.groups()
+            sandbox_date_s, mouse, board, box, ardulines_date_s = m.groups()
 
             # The start time is parsed from the filename
-            date = datetime.datetime.strptime(date_s, '%Y%m%d%H%M%S')
+            date = datetime.datetime.strptime(ardulines_date_s, '%Y%m%d%H%M%S')
             
             # The end time is parsed from the file timestamp
             behavior_end_time = datetime.datetime.fromtimestamp(
                 my.misc.get_file_time(filename))
             
             # Store
-            rec_l.append({'rig': rig, 'mouse': mouse,
+            rec_l.append({'rig': box, 'mouse': mouse,
                 'dt_start': date, 'dt_end': behavior_end_time,
                 'duration': behavior_end_time - date,
                 'filename': filename})
