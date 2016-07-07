@@ -65,6 +65,10 @@ def plot_by_training_stage():
         'python_param_stimulus_set': 'stimulus_set',
         'python_param_scheduler_name': 'scheduler'}).set_index('name')
 
+    # Replace Null in stimulus_set and scheduler with ''
+    session_table['stimulus_set'].fillna('', inplace=True)
+    session_table['scheduler'].fillna('', inplace=True)
+
     # Drop mice we don't care about
     session_table = session_table[
         session_table.mouse.isin(gets['active_mice'])]
@@ -127,8 +131,13 @@ def plot_by_training_stage():
             lambda dt: dt.strftime('%m-%d'))
         
         for partnum, psessions in gobj:
+            stimulus_set = psessions.loc[psessions.index[0], 'stimulus_set']
+            try:
+                stimulus_set = stimulus_set[12:]
+            except IndexError:
+                pass
             partlabel = u'%s\n%s\n%s' % (
-                psessions.loc[psessions.index[0], 'stimulus_set'][12:],
+                stimulus_set,
                 psessions.loc[psessions.index[0], 'scheduler'],
                 unicode(psessions.loc[psessions.index[0], 'trim'], 'utf-8'),
                 )
@@ -650,7 +659,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     return res_l
 
-def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
+def display_session_plot(session, stimulus_set=None):
     """Display the real-time plot that was shown during the session.
     
     Currently the trial_types is not saved anywhere, so we'll have to
@@ -662,27 +671,24 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     rows = bdf[bdf.session == session]
     if len(rows) != 1:
         raise ValueError("cannot find unique session for %s" % session)
-    filename = rows.irow(0)['filename']
+    filename = rows['filename'].iloc[0]
+    if stimulus_set is None:
+        stimulus_set = rows['stimulus_set'].iloc[0]
 
-    # Guess the trial types
-    # Could do this by listing the stim_sets dur
-    # Or by reconstructing the types from the keyword params
-    #~ trial_types_to_try = [assumed_trial_types,
-        #~ 'trial_types_3srvpos_80pd', 'trial_types_3srvpos_95pd',
-        #~ 'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos',
-        #~ ]
-        
-    # Get the trial types by listing stim sets
-    trial_types_glob = os.path.join(
-        os.path.split(ArduFSM.__file__)[0],
-        'stim_sets', 'trial_types*')
-    trial_types_to_try = glob.glob(trial_types_glob)
+    # If we can't get the stimulus set, try everything
+    if pandas.isnull(stimulus_set) or stimulus_set == '':
+        # Get the trial types by listing stim sets
+        trial_types_glob = os.path.join(
+            os.path.split(ArduFSM.__file__)[0],
+            'stim_sets', 'trial_types*')
+        trial_types_to_try = glob.glob(trial_types_glob)
     
-    #os.path.expanduser(os.path.join(
-    #    '/home/chris/dev/ArduFSM/stim_sets/', 'trial_types*')))        
-    trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
-    trial_types_to_try = sorted(trial_types_to_try)[::-1]
+        trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
+        trial_types_to_try = sorted(trial_types_to_try)[::-1]
+    else:
+        trial_types_to_try = [stimulus_set]
     
+    # Now try each one
     for tttt in trial_types_to_try:
         trial_types = mainloop.get_trial_types(tttt)
         plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
@@ -691,6 +697,7 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
             plotter.update(filename)     
         except (ArduFSM.plot.TrialTypesError, KeyError):
             print "warning: trying different trial types"
+            plt.close(plotter.graphics_handles['f'])
             continue
         break
     
