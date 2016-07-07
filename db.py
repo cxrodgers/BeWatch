@@ -837,6 +837,11 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
                 params = json.load(fi)
             stimulus_set = params.get('stimulus_set', '')
             
+            # Hack, because right now all rigs are using reversed, but
+            # not stored
+            if not stimulus_set.endswith('_r'):
+                stimulus_set += '_r'
+            
             # Get the protocol name
             # Not stored as a param, have to get it from the script name
             script_files = os.listdir(os.path.split(json_file)[0])
