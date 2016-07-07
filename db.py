@@ -81,7 +81,7 @@ def getstarted():
     res['cohorts'] = [
         ['KM63', 'KM65', 'KF73', 'KF75', 'KF79', ],
         ['KM81', 'KM83', 'KM84', 'KM85', 'KM86', ],
-        #['KM87', 'KM88', 'KF89', 'KF90'],
+        ['KM87', 'KM88', 'KF89', 'KF90'],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
@@ -636,8 +636,10 @@ def search_for_behavior_files(
     # Ensure there is only one saved ardulines for each
     all_behavior_files = []
     for sd in saved_directories:
-        # Skip if not TwoChoice
-        if not os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')):
+        # Skip if not TwoChoice or LickTrain
+        if not (
+            os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')) or
+            os.path.exists(os.path.join(sd, 'Script', 'LickTrain.py'))):
             continue
         logfiles = glob.glob(os.path.join(sd, 'Script', 'logfiles', 'ardulines.*'))
         assert len(logfiles) == 1
