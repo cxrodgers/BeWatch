@@ -13,7 +13,7 @@ import my
 import datetime
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
 import socket
-
+import json
 
 def get_locale():
     """Return the hostname"""
@@ -81,7 +81,7 @@ def getstarted():
     res['cohorts'] = [
         ['KM63', 'KM65', 'KF73', 'KF75', 'KF79', ],
         ['KM81', 'KM83', 'KM84', 'KM85', 'KM86', ],
-        #['KM87', 'KM88', 'KF89', 'KF90'],
+        ['KM87', 'KM88', 'KF89', 'KF90'],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
@@ -198,6 +198,10 @@ def get_behavior_df():
     # Alternatively, could store as floating point seconds
     behavior_files_df['duration'] = pandas.to_timedelta(
         behavior_files_df['duration'])
+    
+    # Force empty strings to be '' not NaN
+    behavior_files_df['stimulus_set'].fillna('', inplace=True)
+    behavior_files_df['protocol'].fillna('', inplace=True)
     
     return behavior_files_df
     
@@ -636,8 +640,10 @@ def search_for_behavior_files(
     # Ensure there is only one saved ardulines for each
     all_behavior_files = []
     for sd in saved_directories:
-        # Skip if not TwoChoice
-        if not os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')):
+        # Skip if not TwoChoice or LickTrain
+        if not (
+            os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')) or
+            os.path.exists(os.path.join(sd, 'Script', 'LickTrain.py'))):
             continue
         logfiles = glob.glob(os.path.join(sd, 'Script', 'logfiles', 'ardulines.*'))
         assert len(logfiles) == 1
@@ -824,10 +830,33 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
             behavior_end_time = datetime.datetime.fromtimestamp(
                 my.misc.get_file_time(filename))
             
+            # Get the stimulus set
+            json_file = os.path.normpath(
+                os.path.join(filename, '../../parameters.json'))
+            with file(json_file) as fi:
+                params = json.load(fi)
+            stimulus_set = params.get('stimulus_set', '')
+            
+            # Hack, because right now all rigs are using reversed, but
+            # not stored
+            if not stimulus_set.endswith('_r'):
+                stimulus_set += '_r'
+            
+            # Get the protocol name
+            # Not stored as a param, have to get it from the script name
+            script_files = os.listdir(os.path.split(json_file)[0])
+            if 'TwoChoice.py' in script_files:
+                protocol = 'TwoChoice'
+            elif 'LickTrain.py' in script_files:
+                protocol = 'LickTrain'
+            else:
+                protocol = ''
+            
             # Store
             rec_l.append({'rig': box, 'mouse': mouse,
                 'dt_start': date, 'dt_end': behavior_end_time,
                 'duration': behavior_end_time - date,
+                'protocol': protocol, 'stimulus_set': stimulus_set,
                 'filename': filename})
     behavior_files_df = pandas.DataFrame.from_records(rec_l)
 

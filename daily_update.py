@@ -27,7 +27,7 @@ def daily_update_behavior():
     """Update behavior database"""
     # load the current database
     current_bdf = BeWatch.db.get_behavior_df()
-    
+
     # get new records
     PATHS = BeWatch.db.get_paths()
     newly_added_bdf = BeWatch.db.search_for_behavior_files(
@@ -40,7 +40,7 @@ def daily_update_behavior():
         ignore_index=True, verify_integrity=True)
     new_bdf = concatted.drop_duplicates(subset='session',
         take_last=True).reset_index(drop=True)
-    
+
     # store copy for error check
     new_bdf_copy = new_bdf.copy()
     
@@ -188,6 +188,10 @@ def daily_update_perf_metrics(start_date=None, verbose=False):
         if session in pmdf['session'].values:
             if verbose:
                 print "skipping", session
+            continue
+        
+        # Skip anything that is not TwoChoice
+        if brow['protocol'] != 'TwoChoice':
             continue
         
         # Otherwise run
