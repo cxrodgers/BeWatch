@@ -526,11 +526,16 @@ def display_perf_by_servo_from_day(date=None):
     f.tight_layout()
 
 
-def display_perf_by_servo(session=None, tm=None, ax=None):
+def display_perf_by_servo(session=None, tm=None, ax=None, mean_meth='lr_pool'):
     """Plot perf by servo from single session into ax.
     
     if session is not None, loads trial matrix from it.
     if session is None, uses tm.
+    
+    mean_meth: string
+        if 'lr_pool': sum together the trials on left and right before
+        averaging
+        if 'lr_mean': mean the performances on left and right
     """
     # Get trial matrix
     if session is not None:
@@ -556,8 +561,16 @@ def display_perf_by_servo(session=None, tm=None, ax=None):
     resdf = pandas.DataFrame.from_records(rec_l)
     resdf['perf'] = resdf['nhits'] / resdf['ntots']
 
-    # mean
-    meanperf = resdf.groupby('servo_pos')['perf'].mean()
+    if mean_meth == 'lr_average':
+        # mean left and right performances
+        meanperf = resdf.groupby('servo_pos')['perf'].mean()
+    elif mean_meth == 'lr_pool':
+        # combine L and R trials
+        lr_combo = resdf.groupby('servo_pos').sum()
+        meanperf = lr_combo['nhits'] / lr_combo['ntots']
+    else:
+        raise ValueError(str(mean_meth))
+    
 
     # Plot
     colors = {'left': 'blue', 'right': 'red', 'mean': 'purple'}
