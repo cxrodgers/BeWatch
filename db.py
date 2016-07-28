@@ -25,7 +25,7 @@ def get_paths():
     if LOCALE == 'chris-pyramid':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/sandbox_root',
+            'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
@@ -39,7 +39,7 @@ def get_paths():
     elif LOCALE == 'nivram':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/sandbox_root',
+            'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
