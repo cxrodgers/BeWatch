@@ -17,6 +17,7 @@ import os
 import sqlalchemy
 import requests
 from StringIO import StringIO
+import pytz
 
 def plot_by_training_stage():
     """Plot performance by stage of training for every mouse.
@@ -44,12 +45,23 @@ def plot_by_training_stage():
     # Assert a time of 11pm (TODO: use time column)
     trims['Date'] = trims['Date'].apply(
         lambda ts: ts + datetime.timedelta(hours=23))
+    
+    # Localize the times to Eastern
+    # The times from the google doc are timezone-naive
+    # The times from django are timezone-aware and in UTC
+    # I think they'll compare correctly?
+    tz = pytz.timezone('US/Eastern')
+    trims['Date'] = trims['Date'].apply(lambda ts: ts.tz_localize(tz))
 
     # Connect to the master database
-    database_path = os.path.expanduser('~/Dropbox/django/runmouse/db.sqlite3')
-    if not os.path.exists(database_path):
-        raise IOError("cannot find database: %s" % database_path)
-    conn = sqlalchemy.create_engine('sqlite:///%s' % database_path)
+    this_directory = os.path.dirname(os.path.abspath(__file__))
+    with file(os.path.join(this_directory, "db_credentials"), "r") as fi:
+        database_path = fi.read().strip()
+    conn = sqlalchemy.create_engine(database_path)
+    #~ database_path = os.path.expanduser('~/Dropbox/django/runmouse/db.sqlite3')
+    #~ if not os.path.exists(database_path):
+        #~ raise IOError("cannot find database: %s" % database_path)
+    #~ conn = sqlalchemy.create_engine('sqlite:///%s' % database_path)
 
     # Read the tables using pandas
     session_table = pandas.read_sql_table('runner_session', conn)[[
