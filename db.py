@@ -25,6 +25,7 @@ def get_paths():
     if LOCALE == 'chris-pyramid':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
+            'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
@@ -32,6 +33,7 @@ def get_paths():
     elif LOCALE == 'marvin':
         PATHS = {
             'database_root': '/home/mouse/dev/behavior_db',
+            'presandbox_behavior_dir': '/home/mouse/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/mouse/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/mouse/compressed_eye',
             }
@@ -39,6 +41,7 @@ def get_paths():
     elif LOCALE == 'nivram':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
+            'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
@@ -46,6 +49,7 @@ def get_paths():
     elif LOCALE == 'lumps':
         PATHS = {
             'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
+            'presandbox_behavior_dir': '/home/jack/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/jack/mnt/marvin/sandbox_root',
             'video_dir': '/home/jack/mnt/marvin/compressed_eye',
             }
@@ -194,6 +198,10 @@ def get_behavior_df():
     # de-localeify
     behavior_files_df['filename'] = behavior_files_df['filename'].str.replace(
         '\$behavior_dir\$', PATHS['behavior_dir'])
+
+    # de-localeify
+    behavior_files_df['filename'] = behavior_files_df['filename'].str.replace(
+        '\$presandbox_behavior_dir\$', PATHS['presandbox_behavior_dir'])
     
     # Alternatively, could store as floating point seconds
     behavior_files_df['duration'] = pandas.to_timedelta(
