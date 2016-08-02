@@ -83,7 +83,7 @@ def getstarted():
         }
 
     res['cohorts'] = [
-        ['KM63', 'KM65', 'KF73', 'KF75', 'KF79', ],
+        ['KM65', 'KF73', 'KF75', ],
         ['KM81', 'KM83', 'KM84', 'KM85', 'KM86', ],
         ['KM87', 'KM88', 'KF89', 'KF90'],
         ]
