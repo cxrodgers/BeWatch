@@ -47,6 +47,8 @@ def daily_update_behavior():
     # locale-ify
     new_bdf['filename'] = new_bdf['filename'].str.replace(
         PATHS['behavior_dir'], '$behavior_dir$')
+    new_bdf['filename'] = new_bdf['filename'].str.replace(
+        PATHS['presandbox_behavior_dir'], '$presandbox_behavior_dir$')        
     
     # save
     filename = os.path.join(PATHS['database_root'], 'behavior.csv')
