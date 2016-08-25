@@ -13,12 +13,6 @@ import networkx as nx
 import glob
 import os
 
-# for plot_by_training_stage
-import sqlalchemy
-import requests
-from StringIO import StringIO
-import pytz
-
 def plot_by_training_stage():
     """Plot performance by stage of training for every mouse.
     
@@ -34,94 +28,18 @@ def plot_by_training_stage():
     
     Returns: list of Figure
     """
-    gets = BeWatch.db.getstarted()
-    
-    # Get the whisker trims
-    url = ('https://docs.google.com/spreadsheets/d/'
-        '1Dvqw36R2fYTo7iWdTHOf27HONbI78nOcHaqvSEk5Bes/export?format=csv&gid=0')
-    r = requests.get(url)
-    trims = pandas.read_csv(StringIO(r.content), parse_dates=['Date'])
-
-    # Assert a time of 11pm (TODO: use time column)
-    trims['Date'] = trims['Date'].apply(
-        lambda ts: ts + datetime.timedelta(hours=23))
-    
-    # Localize the times to Eastern
-    # The times from the google doc are timezone-naive
-    # The times from django are timezone-aware and in UTC
-    # I think they'll compare correctly?
-    tz = pytz.timezone('US/Eastern')
-    trims['Date'] = trims['Date'].apply(lambda ts: ts.tz_localize(tz))
-
-    # Connect to the master database
-    this_directory = os.path.dirname(os.path.abspath(__file__))
-    with file(os.path.join(this_directory, "db_credentials"), "r") as fi:
-        database_path = fi.read().strip()
-    conn = sqlalchemy.create_engine(database_path)
-    #~ database_path = os.path.expanduser('~/Dropbox/django/runmouse/db.sqlite3')
-    #~ if not os.path.exists(database_path):
-        #~ raise IOError("cannot find database: %s" % database_path)
-    #~ conn = sqlalchemy.create_engine('sqlite:///%s' % database_path)
-
-    # Read the tables using pandas
-    session_table = pandas.read_sql_table('runner_session', conn)[[
-        'name', 'python_param_stimulus_set', 'python_param_scheduler_name',
-        'date_time_start', 'mouse_id']]
-    mouse_table = pandas.read_sql_table('runner_mouse', conn)[['id', 'name']]
-
-    # Join the mouse name onto the session table
-    session_table = session_table.join(
-        mouse_table.set_index('id'),
-        on='mouse_id', rsuffix='_mouse').drop('mouse_id', 1).rename(
-        columns={'name_mouse': 'mouse', 
-        'python_param_stimulus_set': 'stimulus_set',
-        'python_param_scheduler_name': 'scheduler'}).set_index('name')
-
-    # Replace Null in stimulus_set and scheduler with ''
-    session_table['stimulus_set'].fillna('', inplace=True)
-    session_table['scheduler'].fillna('', inplace=True)
-
-    # Drop mice we don't care about
-    session_table = session_table[
-        session_table.mouse.isin(gets['active_mice'])]
-
-    # Mark each trim
-    session_table['trim'] = 'All'
-    for idx in trims.index:
-        session_table.loc[
-            (session_table.mouse == trims.loc[idx, 'Mouse']) &
-            (session_table.date_time_start >= trims.loc[idx, 'Date']),
-            'trim'] = trims.loc[idx, 'Which Spared']
-
-    # Join on perf metrics
-    pmdf = BeWatch.db.get_perf_metrics()
-    session_table = session_table.join(pmdf.set_index('session')[[
-        'n_trials', 'spoil_frac', 'perf_unforced', 'perf_all']])
-
-    # Set perf to be perf_unforced except for FA where it's perf_all
-    session_table['perf'] = session_table['perf_unforced'].copy()
-    msk = session_table.scheduler == 'ForcedAlternation'
-    session_table.loc[msk, 'perf'] = session_table.loc[msk, 'perf_all']
-
-    # For each mouse, partition by any change in stimulus_set or scheduler
-    session_table['partition'] = -1
-    for mouse, msessions in session_table.groupby('mouse'):
-        partition = (
-            (msessions['stimulus_set'] != msessions['stimulus_set'].shift()) |
-            (msessions['scheduler'] != msessions['scheduler'].shift()) |
-            (msessions['trim'] != msessions['trim'].shift())
-            ).cumsum() - 1
-        session_table.loc[msessions.index, 'partition'] = partition
+    # Get perf data partitioned by training stage
+    session_table, change_table = BeWatch.db.calculate_perf_by_training_stage()
 
     # Partition plot by mouse
     n_mouse_per_figure = 4
     f, axa = None, None
     fignum, axnum = 0, 0
     fig_l = []
+    
+    # Plot each mouse in its own axis
     for mouse, msessions in session_table.groupby('mouse'):
-        #~ if axnum == n_mouse_per_figure:
-            #~ # Save figure
-            #~ f.savefig('perf%d.pdf' % fignum)
+        mchanges = change_table.ix[msessions.index]
         
         if f is None or axnum == n_mouse_per_figure:
             f, axa = plt.subplots(n_mouse_per_figure, 1,
@@ -135,51 +53,106 @@ def plot_by_training_stage():
         ax = axa[axnum]
         axnum += 1
         
-        msessions2 = msessions.reset_index()
-        gobj = msessions2.groupby('partition')
-
-        xt = np.array(list(range(len(msessions2))))
-        xtl = msessions2['date_time_start'].apply(
-            lambda dt: dt.strftime('%m-%d'))
-        
-        for partnum, psessions in gobj:
-            stimulus_set = psessions.loc[psessions.index[0], 'stimulus_set']
-            try:
-                stimulus_set = stimulus_set[12:]
-            except IndexError:
-                pass
-            partlabel = u'%s\n%s\n%s' % (
-                stimulus_set,
-                psessions.loc[psessions.index[0], 'scheduler'],
-                unicode(psessions.loc[psessions.index[0], 'trim'], 'utf-8'),
-                )
-            partlabel = partlabel.replace('CCL_', '').replace('_', '\n')
-            partlabel = partlabel.replace('ForcedAlternation', 'FA')
-            partlabel = partlabel.replace('; ', '')
-            idxs = psessions.index.values
-            ax.plot(xt[idxs], psessions.perf.values, marker='o', ls='-',
-                color='b')
-            
-            ax.text(np.mean(xt[idxs]), .1, partlabel, ha='center', 
-                size='xx-small')
-            
-            cutval = xt[idxs[-1]] + .5
-            ax.plot([cutval, cutval], [0, 1], 'r-')
-
-        ax.set_ylim((0, 1))
-        ax.set_xticks(xt)
-        ax.set_xticklabels(xtl, rotation=45)
-        ax.set_xlim((-.5, xt[-1] + .5))
-        ax.plot(ax.get_xlim(), [.5, .5], 'k--')
-        
-        
+        plot_by_training_stage_one_mouse(msessions, mchanges, ax=ax)
         ax.set_title(mouse)
 
-    # The last one doesn't get saved
-    #~ f.savefig('perf%d.pdf' % fignum)
-
-    #~ plt.show()    
     return fig_l
+
+def shorten_param_value(param, value):
+    """Shorten the session parameter to display more nicely"""
+    if param == 'stimulus_set':
+        try:
+            value = value[12:]
+        except IndexError:
+            pass            
+        value = value.replace('CCL_', '')
+        value = value.replace('2shapes', '2sh')
+        value = value.replace('srvpos', 'pos')
+        value = value.replace('_', '\n')
+        
+    
+    elif param == 'scheduler':
+        value = value.replace('ForcedAlternation', 'FA')
+    
+    elif param == 'trim':
+        value = value.replace('; ', '')
+    
+    return value
+
+def plot_by_training_stage_one_mouse(msessions, mchanges, ax=None,
+    mouse=None, start_date=None, delta_days=60):
+    """Plot single mouse's performance split by training stage.
+    
+    msessions : subset of session_table for a single mouse from 
+        BeWatch.db.calculate_perf_by_training_stage
+    mchanges : same but for change_table
+    """
+    if ax is None:
+        f, ax = plt.subplots()
+    
+    if mouse is not None:
+        msessions = msessions[msessions.mouse == mouse]
+        mchanges = mchanges.ix[msessions.index]
+    
+    # Choose start date
+    if start_date is None:
+        start_date = (datetime.datetime.now() - 
+            datetime.timedelta(days=delta_days))
+    
+    # Group by partition
+    msessions2 = msessions.reset_index()
+    mchanges2 = mchanges.reset_index().drop('index', 1)
+    gobj = msessions2.groupby('partition')
+
+    # xticks
+    xt = np.array(list(range(len(msessions2))))
+    xtl = msessions2['date_time_start'].apply(
+        lambda dt: dt.strftime('%m-%d'))
+    beyond_start_date = msessions2['date_time_start'] >= start_date
+    try:
+        start_idx = beyond_start_date.ix[beyond_start_date.values].index[0]
+    except IndexError:
+        # nothing to plot
+        print "no data to plot"
+        return ax
+    
+    # plot each partition
+    for partnum, psessions in gobj:
+        # Get corresponding df from mchanges
+        pchanges = mchanges2.ix[psessions.index]
+        
+        # All changes should have occurred in first row
+        if pchanges[1:].any().any():
+            raise ValueError("unexpected changes in middle of partition")
+        changed_params = pchanges.columns[pchanges.iloc[0].values]
+        
+        # Create a part_label based on what has changed in this partition
+        partlabel = ''
+        for cp in changed_params:
+            value = psessions[cp].iloc[0]
+            if pandas.isnull(value):
+                value = 'NA'
+            assert (psessions[cp].dropna() == value).all()
+            shortened_value = shorten_param_value(cp, value)
+            partlabel += shortened_value + '\n'
+
+        idxs = psessions.index.values
+        ax.plot(xt[idxs], psessions.perf.values, marker='o', ls='-',
+            color='b')
+        
+        ax.text(np.mean(xt[idxs]), .1, partlabel, ha='center', 
+            size='xx-small', clip_on=True)
+        
+        cutval = xt[idxs[-1]] + .5
+        ax.plot([cutval, cutval], [0, 1], 'r-')
+
+    ax.set_ylim((0, 1))
+    ax.set_xticks(xt)
+    ax.set_xticklabels(xtl, rotation=45)
+    ax.set_xlim((xt[start_idx] - .5, xt[-1] + .5))
+    ax.plot(ax.get_xlim(), [.5, .5], 'k--')
+    
+    return ax
 
 def plot_weights(delta_days=20):
     """Plot the weight over time.
