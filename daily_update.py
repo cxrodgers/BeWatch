@@ -18,8 +18,8 @@ def daily_update():
         raise ValueError("this must be run on marvin")
     
     daily_update_behavior()
-    daily_update_video()
-    daily_update_overlap_behavior_and_video()
+    #~ daily_update_video()
+    #~ daily_update_overlap_behavior_and_video()
     daily_update_trial_matrix()
     daily_update_perf_metrics()
 
