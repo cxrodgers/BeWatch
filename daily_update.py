@@ -138,8 +138,9 @@ def daily_update_trial_matrix(start_date=None, verbose=False):
     behavior_files_df = BeWatch.db.get_behavior_df()
     
     # Filter by those after start date
-    behavior_files_df = behavior_files_df[ 
-        behavior_files_df.dt_start >= start_date]
+    if start_date is not None:
+        behavior_files_df = behavior_files_df[ 
+            behavior_files_df.dt_start >= start_date]
     
     # Calculate trial_matrix for each
     session2trial_matrix = {}
@@ -176,8 +177,9 @@ def daily_update_perf_metrics(start_date=None, verbose=False):
     behavior_files_df = BeWatch.db.get_behavior_df()
 
     # Filter by those after start date
-    behavior_files_df = behavior_files_df[ 
-        behavior_files_df.dt_start >= start_date]
+    if start_date is not None:
+        behavior_files_df = behavior_files_df[ 
+            behavior_files_df.dt_start >= start_date]
 
     # Load what we've already calculated
     pmdf = BeWatch.db.get_perf_metrics()
