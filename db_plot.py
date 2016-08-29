@@ -319,7 +319,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
             #~ ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
             ]
     mouse_order = piv['perf_unforced'].mean(1)
-    mouse_order.sort()
+    mouse_order.sort_values(inplace=True)
     mouse_order = mouse_order.index.values
     
     # Drop some mice
@@ -594,7 +594,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     # The order of the traces, actually rig_order here not mouse_order
     mouse_order = piv['perf_unforced'].mean(1)
-    mouse_order.sort()
+    mouse_order.sort_values(inplace=True)
     mouse_order = mouse_order.index.values
     
     # Plot each

@@ -733,7 +733,7 @@ def calculate_pivoted_perf_by_rig(start_date=None, delta_days=15,
     pmdf = pmdf.ix[pmdf.dt_start >= start_date].drop('dt_start', 1)
 
     # always sort on session
-    pmdf = pmdf.sort('session')
+    pmdf = pmdf.sort_values(by='session')
 
     # add a "date_s" column which is just taken from the session for now
     pmdf['date_s'] = pmdf['session'].str[2:8]
@@ -848,7 +848,7 @@ def search_for_behavior_files(
         clean=clean)    
     
     # Sort and reindex
-    behavior_files_df = behavior_files_df.sort('dt_start')
+    behavior_files_df = behavior_files_df.sort_values(by='dt_start')
     behavior_files_df.index = range(len(behavior_files_df))
     
     return behavior_files_df
