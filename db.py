@@ -13,6 +13,192 @@ import my
 import datetime
 from ArduFSM import TrialMatrix, TrialSpeak, mainloop
 import socket
+import json
+
+# for get_django_database_path
+import sqlalchemy
+
+# for get_whisker_trims_table
+import requests
+from StringIO import StringIO
+import pytz
+
+def get_django_database_path():
+    """Return URI to django mouse-cloud database.
+    
+    Currently this works by checking for a file "db_credentials" either
+    in this directory or in ~/Dropbox/django/mouse2. Probably this should
+    be able to invoke heroku config:get and cache the results?
+    """
+    # Connect to the master database
+    this_directory = os.path.dirname(os.path.abspath(__file__))
+    dropbox_directory = os.path.expanduser('~/Dropbox/django/mouse2/mouse2')
+    database_path = None
+    for dirname in [this_directory, dropbox_directory]:
+        filename = os.path.join(dirname, 'db_credentials')
+        try:
+            with open(os.path.join(dirname, "db_credentials"), "r") as fi:
+                database_path = fi.read().strip()
+        except IOError:
+            continue
+    
+    if database_path is None:
+        raise IOError("cannot find URL to mouse-cloud database")
+    
+    return database_path
+
+def get_django_session_table():
+    """Connects to mouse-cloud and extracts session table as DataFrame.
+    
+    Uses get_django_database_path to access mouse-cloud. Uses pandas
+    to read the appropriate tables. Renames and demungs a few columns.
+    
+    Returns: DataFrame, with these columns
+        mouse, stimulus_set, scheduler, date_time_start
+    """
+    # Connect to mouse cloud
+    database_path = get_django_database_path()
+    conn = sqlalchemy.create_engine(database_path)
+
+    # Read the tables using pandas
+    session_table = pandas.read_sql_table('runner_session', conn)[[
+        'name', 'python_param_stimulus_set', 'python_param_scheduler_name',
+        'date_time_start', 'mouse_id', 'board_id', 'box_id']]
+    
+    # Get other tables to parse id fields
+    mouse_table = pandas.read_sql_table('runner_mouse', conn)[['id', 'name']]
+    board_table = pandas.read_sql_table('runner_board', conn)[['id', 'name']]
+    box_table = pandas.read_sql_table('runner_box', conn)[['id', 'name']]
+
+    # Join mouse, board, and box onto session table
+    session_table = session_table.join(
+        mouse_table.set_index('id'),
+        on='mouse_id', rsuffix='_mouse').drop('mouse_id', 1)
+    session_table = session_table.join(
+        board_table.set_index('id'),
+        on='board_id', rsuffix='_board').drop('board_id', 1)
+    session_table = session_table.join(
+        box_table.set_index('id'),
+        on='box_id', rsuffix='_box').drop('box_id', 1)
+    
+    # Rename the suffixed columns and the PP columns
+    session_table = session_table.rename(
+        columns={
+            'name_mouse': 'mouse',
+            'name_board': 'board',
+            'name_box': 'box',
+            'python_param_stimulus_set': 'stimulus_set',
+            'python_param_scheduler_name': 'scheduler',
+        }
+    ).set_index('name')
+
+    # Replace Null in stimulus_set and scheduler with ''
+    session_table['stimulus_set'].fillna('', inplace=True)
+    session_table['scheduler'].fillna('', inplace=True)
+    
+    return session_table
+
+def get_whisker_trims_table():
+    """Download the whisker trims from the google doc
+    
+    Combines the Date and Time columns, using a default time of 11pm.
+    Localizes the time to America/New_York
+    """
+    def combine_date_and_time(dateobj, timeobj):
+        """Helper function to combine times that are Timestamp or datetime.time
+        
+        Returns as timestamp.
+        """
+        try:
+            res = datetime.datetime.combine(dateobj, timeobj)
+        except TypeError:
+            # Must be a timestamp
+            res = datetime.datetime.combine(dateobj, 
+                timeobj.to_datetime().time())
+        return pandas.Timestamp(res)
+    
+    # Get the whisker trims
+    url = ('https://docs.google.com/spreadsheets/d/'
+        '1Dvqw36R2fYTo7iWdTHOf27HONbI78nOcHaqvSEk5Bes/export?format=csv&gid=0')
+    r = requests.get(url)
+    trims = pandas.read_csv(StringIO(r.content), 
+        parse_dates=['Date', 'Time (def 11pm)'],
+        ).rename(
+        columns={'Time (def 11pm)' : 'Time'})
+    trims['Time'].fillna(datetime.time(hour=23), inplace=True)
+
+    # Combine Date and Time
+    trims['dt'] = trims.apply(lambda x: combine_date_and_time(
+        x['Date'], x['Time']), axis=1)
+
+    # Localize the times to Eastern
+    # The times from the google doc are timezone-naive
+    # The times from django are timezone-aware and in UTC
+    # I think they'll compare correctly?
+    tz = pytz.timezone('America/New_York')
+    trims['dt'] = trims['dt'].apply(lambda ts: ts.tz_localize(tz))
+    trims = trims.drop(['Date', 'Time'], axis=1)
+    
+    return trims
+
+
+def calculate_perf_by_training_stage(partition_params=(
+    'stimulus_set', 'scheduler', 'trim', 'board', 'box',)):
+    """Calculate perf on each day and split by training stage
+    
+    Splits on: whisker trims (from google doc), scheduler and stim set
+    (from mouse-cloud)
+    
+    Returns: session_table, change_table
+        session_table : DataFrame, with 'partition' column
+        change_table : DataFrame, boolean, where each entry reflects
+            where the partition occurred for that parameter
+    """
+    gets = getstarted()
+    partition_params = list(partition_params)
+
+    # Get the session table from django and drop mice we don't care about
+    session_table = get_django_session_table()
+    session_table = session_table[
+        session_table.mouse.isin(gets['active_mice'])]
+
+    # Get the trims table
+    trims = get_whisker_trims_table()
+
+    # Mark each trim
+    session_table['trim'] = 'All'
+    for idx in trims.index:
+        session_table.loc[
+            (session_table.mouse == trims.loc[idx, 'Mouse']) &
+            (session_table.date_time_start >= trims.loc[idx, 'dt']),
+            'trim'] = trims.loc[idx, 'Which Spared']
+
+    # Join on perf metrics
+    pmdf = get_perf_metrics()
+    session_table = session_table.join(pmdf.set_index('session')[[
+        'n_trials', 'spoil_frac', 'perf_unforced', 'perf_all']])
+
+    # Set perf to be perf_unforced except for FA where it's perf_all
+    session_table['perf'] = session_table['perf_unforced'].copy()
+    msk = session_table.scheduler == 'ForcedAlternation'
+    session_table.loc[msk, 'perf'] = session_table.loc[msk, 'perf_all']
+
+    # Test to apply to each partition param
+    def shift_test(ser):
+        """Return True where a change occurred, but was not null"""
+        return (ser != ser.shift()) & (~ser.isnull())
+    
+    # Concat
+    change_table_l = []
+    partition_l = []
+    for mouse, msessions in session_table.groupby('mouse'):
+        mchange_table = msessions[partition_params].apply(shift_test)
+        partition_l.append(mchange_table.any(axis=1).cumsum() - 1)
+        change_table_l.append(mchange_table)
+    change_table = pandas.concat(change_table_l).ix[session_table.index]
+    session_table['partition'] = pandas.concat(partition_l)
+
+    return session_table, change_table
 
 
 def get_locale():
@@ -25,28 +211,32 @@ def get_paths():
     if LOCALE == 'chris-pyramid':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/runmice',
+            'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
+            'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
     elif LOCALE == 'marvin':
         PATHS = {
             'database_root': '/home/mouse/dev/behavior_db',
-            'behavior_dir': '/home/mouse/runmice',
+            'presandbox_behavior_dir': '/home/mouse/mnt/nas2_home/behavior/runmice',
+            'behavior_dir': '/home/mouse/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/mouse/compressed_eye',
             }
 
     elif LOCALE == 'nivram':
         PATHS = {
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/chris/mnt/marvin/runmice',
+            'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
+            'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
     elif LOCALE == 'lumps' or LOCALE == 'lumpy':
         PATHS = {
             'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
-            'behavior_dir': '/home/jack/mnt/marvin/runmice',
+            'presandbox_behavior_dir': '/home/jack/mnt/nas2_home/behavior/runmice',
+            'behavior_dir': '/home/jack/mnt/marvin/sandbox_root',
             'video_dir': '/home/jack/mnt/marvin/compressed_eye',
             }
 
@@ -68,7 +258,8 @@ def getstarted():
         'KF46', 'KF47', 'KF48', 'KM49', 'KM50', 'KM51', 'KM52', 'KM53',
         'KM54', 'KF57', 'KF58', 'KF59', 'KF60', 'KF61', 'KF62',
         'KM63', 'KM64', 'KM65', 'KF69', 'KF71', 'KF72', 'KF73', 'KF74',
-        'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83']
+        'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83',
+        'KM84', 'KM85', 'KM86', 'KM87', 'KM88', 'KF89', 'KF90', 'KM91', 'KM93',]
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6', 'B1', 'B2', 'B3', 'B4']
     
@@ -78,9 +269,9 @@ def getstarted():
         }
 
     res['cohorts'] = [
-        ['KF61', 'KM63', 'KM64', 'KM65', 'KF73', ],
-        ['KF75', 'KF79', 'KF80', ],
-        ['KM81', 'KM82', 'KM83', ],
+        ['KM65', 'KF73', 'KF75', ],
+        ['KM81', 'KM83', 'KM84', 'KM85', 'KM86', ],
+        ['KM87', 'KM88', 'KF89', 'KF90', 'KM91', 'KM93'],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
@@ -193,10 +384,18 @@ def get_behavior_df():
     # de-localeify
     behavior_files_df['filename'] = behavior_files_df['filename'].str.replace(
         '\$behavior_dir\$', PATHS['behavior_dir'])
+
+    # de-localeify
+    behavior_files_df['filename'] = behavior_files_df['filename'].str.replace(
+        '\$presandbox_behavior_dir\$', PATHS['presandbox_behavior_dir'])
     
     # Alternatively, could store as floating point seconds
     behavior_files_df['duration'] = pandas.to_timedelta(
         behavior_files_df['duration'])
+    
+    # Force empty strings to be '' not NaN
+    behavior_files_df['stimulus_set'].fillna('', inplace=True)
+    behavior_files_df['protocol'].fillna('', inplace=True)
     
     return behavior_files_df
     
@@ -534,7 +733,7 @@ def calculate_pivoted_perf_by_rig(start_date=None, delta_days=15,
     pmdf = pmdf.ix[pmdf.dt_start >= start_date].drop('dt_start', 1)
 
     # always sort on session
-    pmdf = pmdf.sort('session')
+    pmdf = pmdf.sort_values(by='session')
 
     # add a "date_s" column which is just taken from the session for now
     pmdf['date_s'] = pmdf['session'].str[2:8]
@@ -611,9 +810,8 @@ def calculate_perf_by_rewside_and_servo_pos(trial_matrix):
     resdf['perf'] = resdf['nhits'] / resdf['ntots']
     return resdf
 
-
-
-def search_for_behavior_files(behavior_dir='~/mnt/behave/runmice',
+def search_for_behavior_files(
+    behavior_dir='~/mnt/behave/runmice',
     clean=True):
     """Load behavior files into data frame.
     
@@ -628,17 +826,29 @@ def search_for_behavior_files(behavior_dir='~/mnt/behave/runmice',
     behavior_dir = os.path.expanduser(behavior_dir)
     
     # Acquire all behavior files in the subdirectories
+    # Find all saved sandboxes
+    # Then extract logfiles (and probably parameters / results) from each
+    # sandbox_name-saved/Script/logfiles/ardulines.*
+    saved_directories = sorted(glob.glob(os.path.join(behavior_dir, '*-saved')))
+    
+    # Ensure there is only one saved ardulines for each
     all_behavior_files = []
-    for subdir in gets['rigs']:
-        all_behavior_files += glob.glob(os.path.join(
-            behavior_dir, subdir, 'logfiles', 'ardulines.*'))
+    for sd in saved_directories:
+        # Skip if not TwoChoice or LickTrain
+        if not (
+            os.path.exists(os.path.join(sd, 'Script', 'TwoChoice.py')) or
+            os.path.exists(os.path.join(sd, 'Script', 'LickTrain.py'))):
+            continue
+        logfiles = glob.glob(os.path.join(sd, 'Script', 'logfiles', 'ardulines.*'))
+        assert len(logfiles) == 1
+        all_behavior_files.append(logfiles[0])
 
     # Parse out metadata for each
     behavior_files_df = parse_behavior_filenames(all_behavior_files, 
         clean=clean)    
     
     # Sort and reindex
-    behavior_files_df = behavior_files_df.sort('dt_start')
+    behavior_files_df = behavior_files_df.sort_values(by='dt_start')
     behavior_files_df.index = range(len(behavior_files_df))
     
     return behavior_files_df
@@ -798,25 +1008,49 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
     
     # Extract info from filename
     # directory, rigname, datestring, mouse
-    pattern = '(\S+)/(\S+)/logfiles/ardulines\.(\d+)\.(\S+)'
+    # date (with hyphens) - mouse - board - box - saved
+    pattern = '(\S+)-(\S+)-(\S+)-(\S+)-saved/Script/logfiles/ardulines\.(\d+)'
     rec_l = []
     for filename in all_behavior_files:
         # Match filename pattern
         m = re.match(pattern, os.path.abspath(filename))
         if m is not None:
-            dir, rig, date_s, mouse = m.groups()
+            sandbox_date_s, mouse, board, box, ardulines_date_s = m.groups()
 
             # The start time is parsed from the filename
-            date = datetime.datetime.strptime(date_s, '%Y%m%d%H%M%S')
+            date = datetime.datetime.strptime(ardulines_date_s, '%Y%m%d%H%M%S')
             
             # The end time is parsed from the file timestamp
             behavior_end_time = datetime.datetime.fromtimestamp(
                 my.misc.get_file_time(filename))
             
+            # Get the stimulus set
+            json_file = os.path.normpath(
+                os.path.join(filename, '../../parameters.json'))
+            with file(json_file) as fi:
+                params = json.load(fi)
+            stimulus_set = params.get('stimulus_set', '')
+            
+            # Hack, because right now all rigs are using reversed, but
+            # not stored
+            if not stimulus_set.endswith('_r'):
+                stimulus_set += '_r'
+            
+            # Get the protocol name
+            # Not stored as a param, have to get it from the script name
+            script_files = os.listdir(os.path.split(json_file)[0])
+            if 'TwoChoice.py' in script_files:
+                protocol = 'TwoChoice'
+            elif 'LickTrain.py' in script_files:
+                protocol = 'LickTrain'
+            else:
+                protocol = ''
+            
             # Store
-            rec_l.append({'rig': rig, 'mouse': mouse,
+            rec_l.append({'rig': box, 'mouse': mouse,
                 'dt_start': date, 'dt_end': behavior_end_time,
                 'duration': behavior_end_time - date,
+                'protocol': protocol, 'stimulus_set': stimulus_set,
                 'filename': filename})
     behavior_files_df = pandas.DataFrame.from_records(rec_l)
 

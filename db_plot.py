@@ -13,6 +13,147 @@ import networkx as nx
 import glob
 import os
 
+def plot_by_training_stage():
+    """Plot performance by stage of training for every mouse.
+    
+    Breaks the performance plot with vertical lines after every:
+    * Scheduler change
+    * Stimulus change
+    * Whisker trim
+    * (TODO) rig change
+    
+    Requires:
+    * Internet access to google doc of whisker trims
+    * runner django database to be in Dropbox
+    
+    Returns: list of Figure
+    """
+    # Get perf data partitioned by training stage
+    session_table, change_table = BeWatch.db.calculate_perf_by_training_stage()
+
+    # Partition plot by mouse
+    n_mouse_per_figure = 4
+    f, axa = None, None
+    fignum, axnum = 0, 0
+    fig_l = []
+    
+    # Plot each mouse in its own axis
+    for mouse, msessions in session_table.groupby('mouse'):
+        mchanges = change_table.ix[msessions.index]
+        
+        if f is None or axnum == n_mouse_per_figure:
+            f, axa = plt.subplots(n_mouse_per_figure, 1,
+                figsize=(8, 2.6*n_mouse_per_figure))
+            f.subplots_adjust(bottom=.05, wspace=.2, hspace=.4, 
+                left=.05, right=.95, top=.95)
+            axnum = 0
+            fignum += 1
+            fig_l.append(f)
+
+        ax = axa[axnum]
+        axnum += 1
+        
+        plot_by_training_stage_one_mouse(msessions, mchanges, ax=ax)
+        ax.set_title(mouse)
+
+    return fig_l
+
+def shorten_param_value(param, value):
+    """Shorten the session parameter to display more nicely"""
+    if param == 'stimulus_set':
+        try:
+            value = value[12:]
+        except IndexError:
+            pass            
+        value = value.replace('CCL_', '')
+        value = value.replace('2shapes', '2sh')
+        value = value.replace('srvpos', 'pos')
+        value = value.replace('_', '\n')
+        
+    
+    elif param == 'scheduler':
+        value = value.replace('ForcedAlternation', 'FA')
+    
+    elif param == 'trim':
+        value = value.replace('; ', '')
+    
+    return value
+
+def plot_by_training_stage_one_mouse(msessions, mchanges, ax=None,
+    mouse=None, start_date=None, delta_days=60):
+    """Plot single mouse's performance split by training stage.
+    
+    msessions : subset of session_table for a single mouse from 
+        BeWatch.db.calculate_perf_by_training_stage
+    mchanges : same but for change_table
+    """
+    if ax is None:
+        f, ax = plt.subplots()
+    
+    if mouse is not None:
+        msessions = msessions[msessions.mouse == mouse]
+        mchanges = mchanges.ix[msessions.index]
+    
+    # Choose start date
+    if start_date is None:
+        start_date = (datetime.datetime.now() - 
+            datetime.timedelta(days=delta_days))
+    
+    # Group by partition
+    msessions2 = msessions.reset_index()
+    mchanges2 = mchanges.reset_index().drop('index', 1)
+    gobj = msessions2.groupby('partition')
+
+    # xticks
+    xt = np.array(list(range(len(msessions2))))
+    xtl = msessions2['date_time_start'].apply(
+        lambda dt: dt.strftime('%m-%d'))
+    beyond_start_date = msessions2['date_time_start'] >= start_date
+    try:
+        start_idx = beyond_start_date.ix[beyond_start_date.values].index[0]
+    except IndexError:
+        # nothing to plot
+        print "no data to plot"
+        return ax
+    
+    # plot each partition
+    for partnum, psessions in gobj:
+        # Get corresponding df from mchanges
+        pchanges = mchanges2.ix[psessions.index]
+        
+        # All changes should have occurred in first row
+        if pchanges[1:].any().any():
+            raise ValueError("unexpected changes in middle of partition")
+        changed_params = pchanges.columns[pchanges.iloc[0].values]
+        
+        # Create a part_label based on what has changed in this partition
+        partlabel = ''
+        for cp in changed_params:
+            value = psessions[cp].iloc[0]
+            if pandas.isnull(value):
+                value = 'NA'
+            assert (psessions[cp].dropna() == value).all()
+            shortened_value = shorten_param_value(cp, value)
+            partlabel += shortened_value + '\n'
+
+        idxs = psessions.index.values
+        ax.plot(xt[idxs], psessions.perf.values, marker='o', ls='-',
+            color='b')
+        
+        ax.text(np.mean(xt[idxs]), .1, partlabel, ha='center', 
+            size='xx-small', clip_on=True)
+        
+        cutval = xt[idxs[-1]] + .5
+        ax.plot([cutval, cutval], [0, 1], 'r-')
+
+    ax.set_ylim((0, 1))
+    ax.set_xticks(xt)
+    ax.set_xticklabels(xtl, rotation=45)
+    ax.set_xlim((xt[start_idx] - .5, xt[-1] + .5))
+    ax.plot(ax.get_xlim(), [.5, .5], 'k--')
+    
+    return ax
+
 def plot_weights(delta_days=20):
     """Plot the weight over time.
     
@@ -178,7 +319,7 @@ def plot_pivoted_performances(start_date=None, delta_days=15, piv=None,
             #~ ['perf_unforced', 'fev_corr_unforced', 'fev_side_unforced', 'fev_stay_unforced',]
             ]
     mouse_order = piv['perf_unforced'].mean(1)
-    mouse_order.sort()
+    mouse_order.sort_values(inplace=True)
     mouse_order = mouse_order.index.values
     
     # Drop some mice
@@ -379,11 +520,16 @@ def display_perf_by_servo_from_day(date=None):
     f.tight_layout()
 
 
-def display_perf_by_servo(session=None, tm=None, ax=None):
+def display_perf_by_servo(session=None, tm=None, ax=None, mean_meth='lr_pool'):
     """Plot perf by servo from single session into ax.
     
     if session is not None, loads trial matrix from it.
     if session is None, uses tm.
+    
+    mean_meth: string
+        if 'lr_pool': sum together the trials on left and right before
+        averaging
+        if 'lr_mean': mean the performances on left and right
     """
     # Get trial matrix
     if session is not None:
@@ -409,8 +555,16 @@ def display_perf_by_servo(session=None, tm=None, ax=None):
     resdf = pandas.DataFrame.from_records(rec_l)
     resdf['perf'] = resdf['nhits'] / resdf['ntots']
 
-    # mean
-    meanperf = resdf.groupby('servo_pos')['perf'].mean()
+    if mean_meth == 'lr_average':
+        # mean left and right performances
+        meanperf = resdf.groupby('servo_pos')['perf'].mean()
+    elif mean_meth == 'lr_pool':
+        # combine L and R trials
+        lr_combo = resdf.groupby('servo_pos').sum()
+        meanperf = lr_combo['nhits'] / lr_combo['ntots']
+    else:
+        raise ValueError(str(mean_meth))
+    
 
     # Plot
     colors = {'left': 'blue', 'right': 'red', 'mean': 'purple'}
@@ -440,7 +594,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     # The order of the traces, actually rig_order here not mouse_order
     mouse_order = piv['perf_unforced'].mean(1)
-    mouse_order.sort()
+    mouse_order.sort_values(inplace=True)
     mouse_order = mouse_order.index.values
     
     # Plot each
@@ -503,7 +657,7 @@ def display_perf_by_rig(piv=None, drop_mice=('KF28', 'KM14', 'KF19')):
     
     return res_l
 
-def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
+def display_session_plot(session, stimulus_set=None):
     """Display the real-time plot that was shown during the session.
     
     Currently the trial_types is not saved anywhere, so we'll have to
@@ -515,27 +669,24 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
     rows = bdf[bdf.session == session]
     if len(rows) != 1:
         raise ValueError("cannot find unique session for %s" % session)
-    filename = rows.irow(0)['filename']
+    filename = rows['filename'].iloc[0]
+    if stimulus_set is None:
+        stimulus_set = rows['stimulus_set'].iloc[0]
 
-    # Guess the trial types
-    # Could do this by listing the stim_sets dur
-    # Or by reconstructing the types from the keyword params
-    #~ trial_types_to_try = [assumed_trial_types,
-        #~ 'trial_types_3srvpos_80pd', 'trial_types_3srvpos_95pd',
-        #~ 'trial_types_3srvpos_r', 'trial_types_3srvpos', 'trial_types_4srvpos',
-        #~ ]
-        
-    # Get the trial types by listing stim sets
-    trial_types_glob = os.path.join(
-        os.path.split(ArduFSM.__file__)[0],
-        'stim_sets', 'trial_types*')
-    trial_types_to_try = glob.glob(trial_types_glob)
+    # If we can't get the stimulus set, try everything
+    if pandas.isnull(stimulus_set) or stimulus_set == '':
+        # Get the trial types by listing stim sets
+        trial_types_glob = os.path.join(
+            os.path.split(ArduFSM.__file__)[0],
+            'stim_sets', 'trial_types*')
+        trial_types_to_try = glob.glob(trial_types_glob)
     
-    #os.path.expanduser(os.path.join(
-    #    '/home/chris/dev/ArduFSM/stim_sets/', 'trial_types*')))        
-    trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
-    trial_types_to_try = sorted(trial_types_to_try)[::-1]
+        trial_types_to_try = [os.path.split(tt)[1] for tt in trial_types_to_try]
+        trial_types_to_try = sorted(trial_types_to_try)[::-1]
+    else:
+        trial_types_to_try = [stimulus_set]
     
+    # Now try each one
     for tttt in trial_types_to_try:
         trial_types = mainloop.get_trial_types(tttt)
         plotter = ArduFSM.plot.PlotterWithServoThrow(trial_types)
@@ -544,6 +695,7 @@ def display_session_plot(session, assumed_trial_types='trial_types_3srvpos'):
             plotter.update(filename)     
         except (ArduFSM.plot.TrialTypesError, KeyError):
             print "warning: trying different trial types"
+            plt.close(plotter.graphics_handles['f'])
             continue
         break
     

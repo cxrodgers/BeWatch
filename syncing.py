@@ -517,7 +517,7 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None, **kwargs):
 
 def sync_video_with_behavior(bfile, lums=None, video_file=None,
     light_delta=75, diffsize=2, refrac=50,
-    assumed_fps=30.):
+    assumed_fps=30., error_if_no_fit=False):
     """Sync video with behavioral file
     
     Uses decrements in luminance and the backlight signal to do the sync.
@@ -531,6 +531,7 @@ def sync_video_with_behavior(bfile, lums=None, video_file=None,
     lums : luminances by frame, if pre-calculated
     video_file : if lums is None, then calculates them using this
         video_file
+    error_if_no_fit : if True and no fit is found, raises Exception
     
     See BeWatch.syncing.extract_onsets_and_durations for details on
     light_delta, diffsize, and refrac.
@@ -560,4 +561,6 @@ def sync_video_with_behavior(bfile, lums=None, video_file=None,
 
     # Find the fit
     b2v_fit = longest_unique_fit(v_onsets, backlight_times)    
+    if b2v_fit is None and error_if_no_fit:
+        raise ValueError("no fit found")
     return b2v_fit
