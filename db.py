@@ -259,7 +259,8 @@ def getstarted():
         'KM54', 'KF57', 'KF58', 'KF59', 'KF60', 'KF61', 'KF62',
         'KM63', 'KM64', 'KM65', 'KF69', 'KF71', 'KF72', 'KF73', 'KF74',
         'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83',
-        'KM84', 'KM85', 'KM86', 'KM87', 'KM88', 'KF89', 'KF90', 'KM91', 'KM93',]
+        'KM84', 'KM85', 'KM86', 'KM87', 'KM88', 'KF89', 'KF90', 'KM91', 'KM93',
+        'KF94', 'KF95', 'KM96', 'KM97',]
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6', 'B1', 'B2', 'B3', 'B4']
     
@@ -272,6 +273,7 @@ def getstarted():
         ['KM65', 'KF75', 'KM81', 'KM83',],
         ['KM84', 'KM85', 'KM86',],
         ['KM87', 'KM88', 'KF89', 'KF90', 'KM91',],
+        ['KF94', 'KF95', 'KM96', 'KM97',],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
