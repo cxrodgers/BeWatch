@@ -260,7 +260,7 @@ def getstarted():
         'KM63', 'KM64', 'KM65', 'KF69', 'KF71', 'KF72', 'KF73', 'KF74',
         'KF75', 'KF76', 'KF77', 'KF78', 'KF79', 'KF80', 'KM81', 'KM82', 'KM83',
         'KM84', 'KM85', 'KM86', 'KM87', 'KM88', 'KF89', 'KF90', 'KM91', 'KM93',
-        'KF94', 'KF95', 'KM96', 'KM97',]
+        'KF94', 'KF95', 'KM96', 'KM97', 'KF98', 'KF99',]
     
     res['rigs'] = ['L0', 'L1', 'L2', 'L3', 'L5', 'L6', 'B1', 'B2', 'B3', 'B4']
     
@@ -272,7 +272,7 @@ def getstarted():
     res['cohorts'] = [
         ['KM65', 'KF75', 'KM83', 'KM84', 'KM85', 'KM86',],
         ['KM87', 'KM88', 'KF89', 'KF90',],
-        ['KM91', 'KF94', 'KF95',],
+        ['KM91', 'KF94', 'KF95', 'KF98', 'KF99',],
         ]
     
     res['active_mice'] = list(np.concatenate(res['cohorts']))
@@ -843,7 +843,7 @@ def search_for_behavior_files(
         logfiles = glob.glob(os.path.join(sd, 'Script', 'logfiles', 'ardulines.*'))
         assert len(logfiles) == 1
         all_behavior_files.append(logfiles[0])
-
+    
     # Parse out metadata for each
     behavior_files_df = parse_behavior_filenames(all_behavior_files, 
         clean=clean)    
