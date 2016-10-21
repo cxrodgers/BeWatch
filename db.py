@@ -350,11 +350,30 @@ def get_logfile_lines(session):
     
     return lines
 
-def get_trial_matrix(session):
-    """Return the (cached) trial matrix for a session"""
+def get_trial_matrix(session, add_rwin_and_choice_times=False):
+    """Return the (cached) trial matrix for a session
+    
+    add_rwin_and_choice_times : if True, reads the behavior file,
+        and adds these times using 
+        ArduFSM.TrialMatrix.add_rwin_and_choice_times_to_trial_matrix
+        This takes a bit of time.
+    """
     PATHS = get_paths()
     filename = os.path.join(PATHS['database_root'], 'trial_matrix', session)
     res = pandas.read_csv(filename)
+    
+    if add_rwin_and_choice_times:
+        # Get the behavior filename
+        bdf = get_behavior_df()
+        rows = bdf[bdf.session == session]
+        if len(rows) != 1:
+            raise ValueError("cannot find unique session for %s" % session)
+        filename = rows['filename'].iat[0]
+        
+        # Add the columns
+        res = ArduFSM.TrialMatrix.add_rwin_and_choice_times_to_trial_matrix(
+            res, filename)
+    
     return res
 
 def get_all_trial_matrix():
