@@ -851,6 +851,9 @@ def search_for_behavior_files(
     # sandbox_name-saved/Script/logfiles/ardulines.*
     saved_directories = sorted(glob.glob(os.path.join(behavior_dir, '*-saved')))
     
+    if len(saved_directories) == 0:
+        print "warning: no saved directories in %s" % behavior_dir
+    
     # Ensure there is only one saved ardulines for each
     all_behavior_files = []
     for sd in saved_directories:
@@ -1075,7 +1078,7 @@ def parse_behavior_filenames(all_behavior_files, clean=True):
     behavior_files_df = pandas.DataFrame.from_records(rec_l)
 
     if len(behavior_files_df) == 0:
-        print "warning: no behavior files found"
+        raise IOError("no behavior files found")
 
     elif clean:
         # Clean the behavior files by upcasing and applying aliases
