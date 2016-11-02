@@ -186,7 +186,37 @@ def plot_perf_by_radius_distance_and_side(perfdf, ax=None):
     ax.plot([1690, 1850], [.5, .5], 'k:')
     
     ax.set_xticks([1690, 1770, 1850])
-    ax.set_xticklabels(['furthest', '', 'closest'])
+    ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
+    ax.set_xlabel('stimulus position (mm)')
+    
+    # Reverse the order of the x-axis
+    ax.set_xlim(ax.get_xlim()[::-1])
+    
+    ax.set_yticks((0, .25, .5, .75, 1))
+    ax.set_ylim((-.1, 1.1))
+    
+    return ax
+
+
+def plot_perf_by_distance_and_side(perfdf, ax=None):
+    if ax is None:
+        f, ax = plt.subplots()
+    
+    rewside2color = {'left': 'blue', 'right': 'red'}
+    for rewside in ['left', 'right']:
+        sub = perfdf[rewside]
+        ax.plot(sub.index, sub.values, 
+            color=rewside2color[rewside],)
+    
+    ax.plot([1690, 1850], [.5, .5], 'k:')
+    
+    ax.set_xticks([1690, 1770, 1850])
+    ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
+    ax.set_xlabel('stimulus position (mm)')
+    
+    # Reverse the order of the x-axis
+    ax.set_xlim(ax.get_xlim()[::-1])
+    
     ax.set_yticks((0, .25, .5, .75, 1))
     ax.set_ylim((-.1, 1.1))
     
