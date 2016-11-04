@@ -25,6 +25,8 @@ def normalize_edge_summary(edge_summary):
         # Normalize to max
         normalized_es_l.append(es / es.max())
     edge_hist2d = np.mean(normalized_es_l, axis=0)
+    
+    return edge_hist2d
 
 
 def calculate_perf_by_number_of_contacts(tm, bins=None):
