@@ -185,7 +185,7 @@ def plot_perf_by_radius_distance_and_side(perfdf, ax=None):
             ax.plot(sub.index, sub.values, 
                 color=rewside2color[rewside], ls=radius2ls[radius])
     
-    ax.plot([1690, 1850], [.5, .5], 'k:')
+    ax.plot([1690, 1850], [.5, .5], 'k--')
     
     ax.set_xticks([1690, 1770, 1850])
     ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
@@ -210,7 +210,7 @@ def plot_perf_by_distance_and_side(perfdf, ax=None):
         ax.plot(sub.index, sub.values, 
             color=rewside2color[rewside],)
     
-    ax.plot([1690, 1850], [.5, .5], 'k:')
+    ax.plot([1690, 1850], [.5, .5], 'k--')
     
     ax.set_xticks([1690, 1770, 1850])
     ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
