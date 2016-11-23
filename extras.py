@@ -1,31 +1,11 @@
 """Various performance metrics and plotting
 
-Some of this should be moved into whiskvid (like edge_summary stuff)
 """
 import pandas
 import my
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-
-def normalize_edge_summary(edge_summary):
-    """Normalize each trial type in edge_summary and mean.
-    
-    Also dumps edges with y < 100 because those usually are all the way
-    at the top of the frame
-    """
-    # Sum over each type of trial
-    # Normalize each trial type to its max, and then mean
-    normalized_es_l = []
-    for es in edge_summary['H_l']:
-        # Drop everything for which y < 100 (which is the top of the frame)
-        es = es.copy()
-        es[edge_summary['row_edges'][:-1] < 100] = 0
-        
-        # Normalize to max
-        normalized_es_l.append(es / es.max())
-    edge_hist2d = np.mean(normalized_es_l, axis=0)
-
 
 def calculate_perf_by_number_of_contacts(tm, bins=None):
     """Bin the performance by number of contacts.
@@ -183,7 +163,7 @@ def plot_perf_by_radius_distance_and_side(perfdf, ax=None):
             ax.plot(sub.index, sub.values, 
                 color=rewside2color[rewside], ls=radius2ls[radius])
     
-    ax.plot([1690, 1850], [.5, .5], 'k:')
+    ax.plot([1690, 1850], [.5, .5], 'k--')
     
     ax.set_xticks([1690, 1770, 1850])
     ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
@@ -208,7 +188,7 @@ def plot_perf_by_distance_and_side(perfdf, ax=None):
         ax.plot(sub.index, sub.values, 
             color=rewside2color[rewside],)
     
-    ax.plot([1690, 1850], [.5, .5], 'k:')
+    ax.plot([1690, 1850], [.5, .5], 'k--')
     
     ax.set_xticks([1690, 1770, 1850])
     ax.set_xticklabels(['+6.3', '+3.15', 'closest'])
