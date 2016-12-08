@@ -216,6 +216,14 @@ def get_paths():
             'video_dir': '/home/chris/mnt/marvin/compressed_eye',
             }
 
+    elif LOCALE == 'gamma':
+        PATHS = {
+            'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
+            'presandbox_behavior_dir': '/home/jack/mnt/nas2_home/behavior/runmice',
+            'behavior_dir': '/home/jack/mnt/nas2_home/behavior/sandbox_root',
+            'video_dir': '/home/jack/mnt/marvin/compressed_eye',
+            }
+
     elif LOCALE == 'marvin':
         PATHS = {
             'database_root': '/home/mouse/dev/behavior_db',
