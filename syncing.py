@@ -416,8 +416,12 @@ def get_95prctl_r_minus_b(frame):
         frame[::2, ::2, 2].astype(np.int)).flatten()
     return np.sort(vals)[int(.95 * len(vals))]
 
-def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True):
-    """Load lum for session from video or if available from cache"""    
+def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True, 
+    image_w=320, image_h=240):
+    """Load lum for session from video or if available from cache
+    
+    Sends kwargs to my.video.process_chunks_of_video
+    """    
     PATHS = BeWatch.db.get_paths()
     if lumdir is None:
         lumdir = os.path.join(PATHS['database_root'], 'lums')
@@ -443,7 +447,7 @@ def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True):
         print "calculating lums.."
     if meth == 'gray':
         lums = my.video.process_chunks_of_video(vfilename, n_frames=np.inf,
-            verbose=verbose)
+            verbose=verbose, image_w=image_w, image_h=image_h)
     elif meth == 'r-b':
         lums = my.video.process_chunks_of_video(vfilename, n_frames=np.inf,
             func=get_95prctl_r_minus_b, pix_fmt='rgb24', verbose=verbose)
@@ -455,7 +459,8 @@ def get_or_save_lums(session, lumdir=None, meth='gray', verbose=True):
     
 
 def autosync_behavior_and_video_with_houselight(session, save_result=True,
-    light_delta=30, diffsize=2, refrac=50, verbose=False):
+    light_delta=30, diffsize=2, refrac=50, verbose=False, 
+    image_w=320, image_h=240):
     """Main autosync function
     
     Loads lums and behavioral onsets from session.
@@ -475,7 +480,8 @@ def autosync_behavior_and_video_with_houselight(session, save_result=True,
 
     # Get the lums ... this takes a while
     # We cache it here so that sync_video_with_behavior doesn't have to
-    lums = get_or_save_lums(session, verbose=verbose)
+    lums = get_or_save_lums(session, verbose=verbose, 
+        image_w=image_w, image_h=image_h)
 
     # Fit the data
     b2v_fit = sync_video_with_behavior(bfile, lums=lums, video_file=vfilename,
