@@ -516,6 +516,7 @@ def autosync_behavior_and_video_with_houselight_from_day(date=None, **kwargs):
             autosync_behavior_and_video_with_houselight(session, **kwargs)
 
 def sync_video_with_behavior(bfile, lums=None, video_file=None,
+    stop_after_frame=np.inf,
     light_delta=75, diffsize=2, refrac=50,
     assumed_fps=30., error_if_no_fit=False):
     """Sync video with behavioral file
@@ -541,7 +542,8 @@ def sync_video_with_behavior(bfile, lums=None, video_file=None,
     # Or used ffmpeg's native calculations?
     if lums is None:
         print "loading luminances ... this will take a while"    
-        lums = my.video.process_chunks_of_video(video_file, n_frames=np.inf)
+        lums = my.video.process_chunks_of_video(video_file, 
+            n_frames=stop_after_frame)
 
     # Get onsets and durations
     onsets, durations = extract_onsets_and_durations(-lums, 
