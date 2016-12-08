@@ -260,7 +260,7 @@ def extract_frames_at_retraction_times(behavior_filename, video_filename,
     
     # Extract frames
     trial_number2frame = {}
-    for trial_number, retract_time in state_change_times_vbase.dropna().iterkv():
+    for trial_number, retract_time in state_change_times_vbase.dropna().iteritems():
         if verbose:
             print trial_number
         frame, stdout, stderr = my.video.get_frame(
