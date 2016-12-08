@@ -213,7 +213,7 @@ def get_paths():
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
             'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
-            'video_dir': '/home/chris/mnt/marvin/compressed_eye',
+            'video_dir': '/home/chris/mnt/nas2_home/ps3eye/marvin/compressed_eye',
             }
 
     elif LOCALE == 'gamma':
@@ -221,7 +221,7 @@ def get_paths():
             'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
             'presandbox_behavior_dir': '/home/jack/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/jack/mnt/nas2_home/behavior/sandbox_root',
-            'video_dir': '/home/jack/mnt/marvin/compressed_eye',
+            'video_dir': '/home/jack/mnt/nas2_home/ps3eye/marvin/compressed_eye',
             }
 
     elif LOCALE == 'marvin':
@@ -229,7 +229,7 @@ def get_paths():
             'database_root': '/home/mouse/dev/behavior_db',
             'presandbox_behavior_dir': '/home/mouse/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/mouse/mnt/nas2_home/behavior/sandbox_root',
-            'video_dir': '/home/mouse/compressed_eye',
+            'video_dir': '/home/mouse/mnt/nas2_home/ps3eye/marvin/compressed_eye',
             }
 
     elif LOCALE == 'nivram':
@@ -237,7 +237,7 @@ def get_paths():
             'database_root': '/home/chris/mnt/marvin/dev/behavior_db',
             'presandbox_behavior_dir': '/home/chris/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/chris/mnt/nas2_home/behavior/sandbox_root',
-            'video_dir': '/home/chris/mnt/marvin/compressed_eye',
+            'video_dir': '/home/chris/mnt/nas2_home/ps3eye/marvin/compressed_eye',
             }
 
     elif LOCALE == 'lumps' or LOCALE == 'lumpy':
@@ -245,7 +245,7 @@ def get_paths():
             'database_root': '/home/jack/mnt/marvin/dev/behavior_db',
             'presandbox_behavior_dir': '/home/jack/mnt/nas2_home/behavior/runmice',
             'behavior_dir': '/home/jack/mnt/nas2_home/behavior/sandbox_root',
-            'video_dir': '/home/jack/mnt/marvin/compressed_eye',
+            'video_dir': '/home/jack/mnt/nas2_home/ps3eye/marvin/compressed_eye',
             }
 
     else:
@@ -976,7 +976,7 @@ def find_best_overlap_video(behavior_files_df, video_files_df,
         if len(overlap) == 0:
             # ie, no video files found
             continue
-        positive_overlaps = overlap[overlap > 0]
+        positive_overlaps = overlap[overlap > datetime.timedelta(0)]
         if len(positive_overlaps) == 0:
             # ie, no overlapping videos
             continue
@@ -1208,7 +1208,7 @@ def parse_video_filenames(video_filenames, verbose=False,
         raise ValueError("video data frame is empty")
     
     # Sort and reindex
-    resdf = resdf.sort('dt_start')
+    resdf = resdf.sort_values(by='dt_start')
     resdf.index = range(len(resdf))    
     
     return resdf
