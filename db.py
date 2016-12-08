@@ -971,11 +971,12 @@ def find_best_overlap_video(behavior_files_df, video_files_df,
             video_files_df.rig == brow['rig']]['dt_end'].copy()
         earliest_end[earliest_end > brow['dt_end']] = brow['dt_end']
         
+        # If no videos found, continue
+        if len(earliest_end) == 0:
+            continue
+        
         # Find the video with the most overlap
         overlap = (earliest_end - latest_start)
-        if len(overlap) == 0:
-            # ie, no video files found
-            continue
         positive_overlaps = overlap[overlap > datetime.timedelta(0)]
         if len(positive_overlaps) == 0:
             # ie, no overlapping videos
