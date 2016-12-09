@@ -59,36 +59,36 @@ def make_overlay(sess_meaned_frames, ax, meth='all'):
         furthest_R = my.pick_rows(sess_meaned_frames, rewside='right')[
             'servo_pos'].max()
         L = my.pick_rows(sess_meaned_frames, rewside='left', 
-            servo_pos=closest_L).irow(0)['meaned']
+            servo_pos=closest_L)['meaned'].iloc[0]
         R = my.pick_rows(sess_meaned_frames, rewside='right', 
-            servo_pos=furthest_R).irow(0)['meaned']
+            servo_pos=furthest_R)['meaned'].iloc[0]
     elif meth == 'R':
         closest_R = my.pick_rows(sess_meaned_frames, rewside='right')[
             'servo_pos'].min()
         furthest_L = my.pick_rows(sess_meaned_frames, rewside='left')[
             'servo_pos'].max()
         L = my.pick_rows(sess_meaned_frames, rewside='left', 
-            servo_pos=furthest_L).irow(0)['meaned']
+            servo_pos=furthest_L)['meaned'].iloc[0]
         R = my.pick_rows(sess_meaned_frames, rewside='right', 
-            servo_pos=closest_R).irow(0)['meaned']     
+            servo_pos=closest_R)['meaned'].iloc[0]     
     elif meth == 'close':
         closest_L = my.pick_rows(sess_meaned_frames, rewside='left')[
             'servo_pos'].min()
         closest_R = my.pick_rows(sess_meaned_frames, rewside='right')[
             'servo_pos'].min()
         L = my.pick_rows(sess_meaned_frames, rewside='left', 
-            servo_pos=closest_L).irow(0)['meaned']
+            servo_pos=closest_L)['meaned'].iloc[0]
         R = my.pick_rows(sess_meaned_frames, rewside='right', 
-            servo_pos=closest_R).irow(0)['meaned']     
+            servo_pos=closest_R)['meaned'].iloc[0]     
     elif meth == 'far':
         furthest_L = my.pick_rows(sess_meaned_frames, rewside='left')[
             'servo_pos'].max()            
         furthest_R = my.pick_rows(sess_meaned_frames, rewside='right')[
             'servo_pos'].max()
         L = my.pick_rows(sess_meaned_frames, rewside='left', 
-            servo_pos=furthest_L).irow(0)['meaned']
+            servo_pos=furthest_L)['meaned'].iloc[0]
         R = my.pick_rows(sess_meaned_frames, rewside='right', 
-            servo_pos=furthest_R).irow(0)['meaned']     
+            servo_pos=furthest_R)['meaned'].iloc[0]     
     else:
         raise ValueError("meth not understood: " + str(meth))
             
